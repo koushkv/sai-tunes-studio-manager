@@ -1,0 +1,6 @@
+{
+  "name": "Sai Tunes Studio Manager",
+  "description": "Comprehensive asset register, student logbook, and maintenance scheduler for Sai Tunes Hostel Music Department.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
