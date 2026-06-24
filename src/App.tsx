@@ -7,6 +7,8 @@ import {
   onAuthStateChanged,
   db,
   collection,
+  doc,
+  setDoc,
   onSnapshot
 } from './lib/firebase';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -16,6 +18,7 @@ import InstrumentLogbook from './components/InstrumentLogbook';
 import MaintenanceScheduler from './components/MaintenanceScheduler';
 import StewardshipProgress from './components/StewardshipProgress';
 import AdminControls from './components/AdminControls';
+import MusicReleases from './components/MusicReleases';
 
 // Icon imports
 import { 
@@ -31,8 +34,12 @@ import {
   Mail,
   User,
   Activity,
-  Maximize2
+  Maximize2,
+  Disc3,
+  ShieldX
 } from 'lucide-react';
+
+import { AllowedUser, UserRole } from './types';
 
 interface CustomUser {
   email: string;
@@ -40,19 +47,44 @@ interface CustomUser {
   photoURL: string | null;
 }
 
+const MASTER_ADMIN_EMAIL = 'koushikv@sssihl.edu.in';
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'instruments' | 'maintenance' | 'progress'>('instruments');
+  const [activeTab, setActiveTab] = useState<'instruments' | 'maintenance' | 'progress' | 'releases'>('instruments');
   
   // Real-time Auth User Context
   const [user, setUser] = useState<CustomUser | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminEmails, setAdminEmails] = useState<string[]>(['koushikv@sssihl.edu.in']);
+  const [isAllowed, setIsAllowed] = useState<boolean | null>(null); // null = loading
+  const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   
-  // Login fallback entries
-  const [fallbackEmail, setFallbackEmail] = useState('');
-  const [fallbackName, setFallbackName] = useState('');
   const [authError, setAuthError] = useState('');
   const [showAdminTab, setShowAdminTab] = useState(false);
+
+  // Monitor allowed users from Firestore
+  useEffect(() => {
+    const usersRef = collection(db, 'allowed_users');
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      const userList: AllowedUser[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        userList.push({
+          id: doc.id,
+          email: (data.email || '').toLowerCase(),
+          name: data.name || '',
+          role: data.role || 'member',
+          addedBy: data.addedBy || '',
+          addedAt: data.addedAt || '',
+        });
+      });
+      setAllowedUsers(userList);
+    }, (error) => {
+      console.error("Firestore allowed_users read error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Monitor Firebase Auth state change
   useEffect(() => {
@@ -65,51 +97,59 @@ export default function App() {
         });
         setAuthError('');
       } else {
-        // If not logged in via Google, check if we have a saved manual profile in session cache
-        const saved = sessionStorage.getItem('saitunes_local_user');
-        if (saved) {
-          try {
-            setUser(JSON.parse(saved));
-          } catch {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
+        setUser(null);
+        setIsAllowed(null);
+        setUserRole(null);
+        setIsAdmin(false);
       }
     });
 
     return () => unsubscribeAuth();
   }, []);
 
-  // Monitor allowed Admin Emails collection in real-time
+  // Check if user is allowed + determine role
   useEffect(() => {
-    const adminRef = collection(db, 'admin_emails');
-    const unsubscribeAdmins = onSnapshot(adminRef, (snapshot) => {
-      const emailList: string[] = ['koushikv@sssihl.edu.in']; // Master backup always included
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.email && !emailList.includes(data.email.toLowerCase())) {
-          emailList.push(data.email.toLowerCase());
-        }
-      });
-      setAdminEmails(emailList);
-    }, (error) => {
-      console.error("Firestore Admin Emails read error:", error);
-    });
+    if (!user?.email) {
+      setIsAllowed(null);
+      setUserRole(null);
+      setIsAdmin(false);
+      return;
+    }
 
-    return () => unsubscribeAdmins();
-  }, []);
+    const email = user.email.toLowerCase();
 
-  // Recalculate isAdmin permissions whenever active user context or authorized list changes
-  useEffect(() => {
-    if (user?.email) {
-      const isAllowed = adminEmails.map(x => x.toLowerCase()).includes(user.email.toLowerCase());
-      setIsAdmin(isAllowed);
+    // Master admin is always allowed
+    if (email === MASTER_ADMIN_EMAIL) {
+      setIsAllowed(true);
+      setUserRole('admin');
+      setIsAdmin(true);
+      
+      // Ensure master admin exists in allowed_users collection
+      const masterExists = allowedUsers.some(u => u.email === MASTER_ADMIN_EMAIL);
+      if (!masterExists && allowedUsers.length >= 0) {
+        setDoc(doc(db, 'allowed_users', MASTER_ADMIN_EMAIL), {
+          email: MASTER_ADMIN_EMAIL,
+          name: 'Koushik V',
+          role: 'admin',
+          addedBy: 'system',
+          addedAt: new Date().toISOString(),
+        }).catch(err => console.error("Error auto-adding master admin:", err));
+      }
+      return;
+    }
+
+    // Check against allowed_users list
+    const found = allowedUsers.find(u => u.email === email);
+    if (found) {
+      setIsAllowed(true);
+      setUserRole(found.role);
+      setIsAdmin(found.role === 'admin');
     } else {
+      setIsAllowed(false);
+      setUserRole(null);
       setIsAdmin(false);
     }
-  }, [user, adminEmails]);
+  }, [user, allowedUsers]);
 
   // Google SSO logic
   const handleGoogleLogin = async () => {
@@ -119,36 +159,13 @@ export default function App() {
     } catch (err: any) {
       console.error("Google Auth popup failed:", err);
       if (err.code === 'auth/popup-blocked') {
-        setAuthError("Auth popup was blocked by browser. Please enable popups or use the visual development login form below.");
+        setAuthError("Auth popup was blocked by browser. Please enable popups and try again.");
       } else if (err.code === 'auth/iframe-directory-not-found' || err.code === 'auth/operation-not-supported-in-this-environment') {
-        setAuthError("Google Login is restricted inside the sandboxed preview iframe. Please use the secure manual login fallback below.");
+        setAuthError("Google Login is restricted inside the sandboxed preview iframe.");
       } else {
-        setAuthError(`Verification error: ${err.message}. Feel free to use the manual login fallback below.`);
+        setAuthError(`Login error: ${err.message}`);
       }
     }
-  };
-
-  // Secure local development login (Iframe Safe)
-  const handleManualLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fallbackEmail.trim() || !fallbackName.trim()) {
-      setAuthError("Please provide both email and name credentials.");
-      return;
-    }
-
-    const emailLow = fallbackEmail.trim().toLowerCase();
-    const newUser: CustomUser = {
-      email: emailLow,
-      displayName: fallbackName.trim(),
-      photoURL: null
-    };
-
-    // Save profile to state & session memory
-    setUser(newUser);
-    sessionStorage.setItem('saitunes_local_user', JSON.stringify(newUser));
-    setAuthError('');
-    setFallbackEmail('');
-    setFallbackName('');
   };
 
   const handleLogout = async () => {
@@ -157,12 +174,24 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
-    // Clear session memory too
-    sessionStorage.removeItem('saitunes_local_user');
     setUser(null);
     setIsAdmin(false);
+    setIsAllowed(null);
+    setUserRole(null);
     setShowAdminTab(false);
   };
+
+  // Role display helpers
+  const getRoleBadge = (role: UserRole | null) => {
+    switch (role) {
+      case 'admin': return { label: 'ADMINISTRATOR', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' };
+      case 'junior_admin': return { label: 'JUNIOR ADMIN', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+      case 'member': return { label: 'MEMBER', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+      default: return { label: 'GUEST', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' };
+    }
+  };
+
+  const roleBadge = getRoleBadge(userRole);
 
   return (
     <div id="master-layout" className="min-h-screen bg-zinc-950 font-sans text-zinc-300 flex flex-col antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
@@ -183,16 +212,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Render Tab bar and User controls only when authenticated */}
-          {user && (
+          {/* Render Tab bar and User controls only when authenticated AND allowed */}
+          {user && isAllowed && (
             <div className="flex items-center gap-3 flex-wrap justify-center font-sans text-[11px]">
               
               {/* Navigation Menu Tabs */}
               <nav id="header-nav-tabs" className="flex items-center bg-zinc-950 p-0.5 rounded border border-zinc-800 shrink-0 select-none">
                 {[
-                  { id: 'instruments', label: 'INSTRUMENTS LOG', icon: <Music size={11} /> },
+                  { id: 'instruments', label: 'INSTRUMENTS', icon: <Music size={11} /> },
                   { id: 'maintenance', label: 'MAINTENANCE', icon: <Calendar size={11} /> },
-                  { id: 'progress', label: 'STEWARDSHIP PROGRESS', icon: <TrendingUp size={11} /> }
+                  { id: 'progress', label: 'LEADERBOARD', icon: <TrendingUp size={11} /> },
+                  { id: 'releases', label: 'RELEASES', icon: <Disc3 size={11} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -216,7 +246,7 @@ export default function App() {
               <div className="flex items-center gap-2 border-l border-zinc-800 pl-3 select-none py-1">
                 <div className="text-right leading-tight block">
                   <span className="block font-semibold text-zinc-200 text-[10px] uppercase truncate max-w-28">{user.displayName}</span>
-                  <span className="text-[8px] text-zinc-500 font-bold uppercase">{isAdmin ? 'ADMINISTRATOR' : 'STEWARD'}</span>
+                  <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded border ${roleBadge.color}`}>{roleBadge.label}</span>
                 </div>
                 {user.photoURL ? (
                   <img src={user.photoURL} alt="Profile" referrerPolicy="no-referrer" className="h-6 w-6 rounded-full border border-zinc-800" />
@@ -229,7 +259,7 @@ export default function App() {
                   <button
                     onClick={() => setShowAdminTab(!showAdminTab)}
                     className={`p-1 border rounded cursor-pointer transition-all ${showAdminTab ? 'bg-indigo-600 border-indigo-500 text-zinc-100' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white'}`}
-                    title="Toggle Authorized Admin Registry"
+                    title="User Management Panel"
                   >
                     <Shield size={12} />
                   </button>
@@ -252,7 +282,7 @@ export default function App() {
       {/* Main Workspace Frame */}
       <main id="main-content-stage" className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 flex flex-col justify-start">
         
-        {/* Render sign-in page if user context does not exist */}
+        {/* Not logged in — Show sign-in page */}
         {!user ? (
           <div className="flex-1 flex flex-col items-center justify-center py-10 max-w-md mx-auto select-none animate-in fade-in duration-300">
             
@@ -280,65 +310,60 @@ export default function App() {
                 Sign In with Google Account
               </button>
 
-              <div className="relative flex items-center justify-center select-none py-1">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div>
-                <span className="relative px-3.5 bg-zinc-900 text-zinc-500 font-bold uppercase text-[9px] tracking-wider">Iframe Sandbox Fallback</span>
-              </div>
-
-              <p className="text-[11px] text-zinc-400 text-left leading-relaxed text-center max-w-sm mx-auto">
-                If the Google OAuth popup fails because from inside browser iframe sandbox blocks, authenticate your campus profile manually below:
+              <p className="text-[10px] text-zinc-500 leading-relaxed">
+                Only authorized members can access this system. Contact the admin if you need access.
               </p>
-
-              {/* Manual login safe fallback form */}
-              <form onSubmit={handleManualLoginSubmit} className="space-y-4 p-5 bg-zinc-950 rounded-xl border border-zinc-800 text-left text-xs select-text">
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-semibold text-zinc-400 uppercase tracking-wider">Student Email / University ID</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 text-zinc-500" size={13} />
-                    <input 
-                      type="email" 
-                      placeholder="e.g. koushikv@sssihl.edu.in"
-                      value={fallbackEmail}
-                      onChange={(e) => setFallbackEmail(e.target.value)}
-                      required
-                      className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                    />
-                  </div>
-                  <span className="block text-[8px] text-emerald-400/80 font-medium uppercase tracking-wide">Tip: Write koushikv@sssihl.edu.in for admin privileges</span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-semibold text-zinc-400 uppercase tracking-wider">Borrower Name / Name Tag</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-2.5 text-zinc-500" size={13} />
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Sri Koushik"
-                      value={fallbackName}
-                      onChange={(e) => setFallbackName(e.target.value)}
-                      required
-                      className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="submit"
-                  className="w-full py-2 bg-zinc-800 hover:bg-zinc-750 transition-all border border-zinc-700 text-zinc-200 hover:text-white font-semibold rounded-lg uppercase cursor-pointer tracking-wide text-xs"
-                >
-                  Authenticate Profile
-                </button>
-              </form>
-
             </div>
 
           </div>
+
+        ) : isAllowed === null ? (
+          /* Loading — checking authorization */
+          <div className="flex-1 flex items-center justify-center py-20">
+            <div className="text-center space-y-3 select-none">
+              <div className="h-8 w-8 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mx-auto"></div>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Verifying access permissions...</p>
+            </div>
+          </div>
+
+        ) : !isAllowed ? (
+          /* Access Denied */
+          <div className="flex-1 flex flex-col items-center justify-center py-10 max-w-md mx-auto select-none animate-in fade-in duration-300">
+            <div className="w-full bg-zinc-900 border border-red-900/30 rounded-xl p-8 shadow-2xl font-sans text-center space-y-5">
+              <div className="mx-auto h-14 w-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <ShieldX size={28} className="text-red-400" />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-base font-display font-bold text-zinc-100 tracking-tight">ACCESS DENIED</h2>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Your account <span className="text-zinc-200 font-semibold">{user.email}</span> is not authorized to access this system.
+                </p>
+              </div>
+
+              <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-lg">
+                <p className="text-[11px] text-amber-400 leading-relaxed">
+                  Please contact the administrator at <span className="font-semibold">koushikv@sssihl.edu.in</span> to request access.
+                </p>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="w-full py-2 bg-zinc-800 hover:bg-zinc-750 transition-all border border-zinc-700 text-zinc-300 hover:text-white font-semibold rounded-lg uppercase cursor-pointer tracking-wide text-xs flex items-center justify-center gap-2"
+              >
+                <LogOut size={13} />
+                Sign Out & Try Another Account
+              </button>
+            </div>
+          </div>
+
         ) : (
+          /* Authorized — show app content */
           <>
             {/* If Admin tab is specifically toggled */}
             {showAdminTab ? (
               <div className="space-y-4 animate-in fade-in duration-150">
-                <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6 text-xs max-w-lg mx-auto shadow-xl">
+                <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6 text-xs max-w-2xl mx-auto shadow-xl">
                   <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mb-4 select-none">
                     <span className="font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-1.5 font-display text-xs">
                       <Lock size={13} className="text-zinc-400" /> System Control Center
@@ -349,7 +374,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              // Else, render the standard active options tabs
+              // Standard active tab content
               <div className="flex-1 animate-in fade-in duration-150">
                 {activeTab === 'instruments' && (
                   <InstrumentLogbook currentUser={user} isAdmin={isAdmin} />
@@ -361,6 +386,10 @@ export default function App() {
 
                 {activeTab === 'progress' && (
                   <StewardshipProgress />
+                )}
+
+                {activeTab === 'releases' && (
+                  <MusicReleases currentUser={user} isAdmin={isAdmin} />
                 )}
               </div>
             )}
@@ -377,7 +406,7 @@ export default function App() {
             <p className="text-[10px] text-zinc-500 max-w-2xl leading-relaxed">Unified student-led accountability with real-time Firestore database synchronization and secure campus login.</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[9px] bg-zinc-950 border border-zinc-800 px-2.5 py-1 text-zinc-400 rounded-full font-medium">v2.0 Stable</span>
+            <span className="text-[9px] bg-zinc-950 border border-zinc-800 px-2.5 py-1 text-zinc-400 rounded-full font-medium">v3.0</span>
             <span className="text-[9px] bg-emerald-500/5 border border-emerald-500/10 px-2.5 py-1 text-emerald-400 rounded-full font-medium flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Cloud Connected

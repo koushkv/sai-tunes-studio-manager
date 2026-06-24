@@ -1,492 +1,538 @@
-import React, { useState, useEffect } from 'react';
-import { db, collection, onSnapshot, query, orderBy, limit } from '../lib/firebase';
-import { 
-  TrendingUp, 
-  Clock, 
-  Activity, 
-  BookOpen, 
-  Zap, 
-  Disc, 
-  Sparkles, 
-  RotateCcw,
-  AlertOctagon,
-  ShieldAlert,
-  ClipboardList
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  db, auth, collection, addDoc, onSnapshot, query, orderBy, where, limit,
+} from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import type { AllowedUser, UserRole } from '../types';
+import {
+  Trophy, Star, Activity, TrendingUp, User, ChevronDown, ChevronUp, Plus,
+  Music, Mic, Sliders, Guitar, Wrench, Monitor, GraduationCap, Sparkles,
+  Calendar, Mail, Hash, BarChart3, Clock,
 } from 'lucide-react';
 
-interface ActivityItem {
+// ── Point system ────────────────────────────────────────────────────────────────
+const POINT_VALUES: Record<string, number> = {
+  composition: 15,
+  recording: 10,
+  mixing: 12,
+  practice: 5,
+  maintenance: 8,
+  equipment_setup: 7,
+  teaching: 10,
+  performance: 20,
+};
+
+const ACTIVITY_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  composition:     { label: 'COMPOSITION',      icon: <Music size={13} />,          color: 'text-sky-400' },
+  recording:       { label: 'RECORDING',        icon: <Mic size={13} />,            color: 'text-rose-400' },
+  mixing:          { label: 'MIXING',           icon: <Sliders size={13} />,        color: 'text-violet-400' },
+  practice:        { label: 'PRACTICE',         icon: <Guitar size={13} />,         color: 'text-amber-400' },
+  maintenance:     { label: 'MAINTENANCE',      icon: <Wrench size={13} />,         color: 'text-zinc-400' },
+  equipment_setup: { label: 'EQUIPMENT SETUP',  icon: <Monitor size={13} />,        color: 'text-cyan-400' },
+  teaching:        { label: 'TEACHING',         icon: <GraduationCap size={13} />,  color: 'text-emerald-400' },
+  performance:     { label: 'PERFORMANCE',      icon: <Sparkles size={13} />,       color: 'text-yellow-400' },
+};
+
+const ROLE_STYLES: Record<UserRole, { bg: string; text: string; label: string }> = {
+  admin:        { bg: 'bg-indigo-500/10 border-indigo-500/20', text: 'text-indigo-400', label: 'ADMIN' },
+  junior_admin: { bg: 'bg-amber-500/10 border-amber-500/20',  text: 'text-amber-400',  label: 'JUNIOR ADMIN' },
+  member:       { bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400', label: 'MEMBER' },
+};
+
+// ── Firestore activity document shape ───────────────────────────────────────────
+interface ActivityDoc {
   id: string;
-  type: 'checkout' | 'return' | 'routine';
-  title: string;
-  user: string;
-  date: string;
-  timeFormatted: string;
-  desc: string;
+  userId: string;
+  userName: string;
+  activityType: string;
+  description: string;
+  points: number;
+  loggedBy: string;
+  loggedAt: string;
 }
 
+// ── Per-user leaderboard entry ──────────────────────────────────────────────────
+interface LeaderboardEntry {
+  user: AllowedUser;
+  totalPoints: number;
+  totalActivities: number;
+  breakdown: Record<string, number>; // activityType → accumulated points
+  recentActivities: ActivityDoc[];
+}
+
+// ── Component ───────────────────────────────────────────────────────────────────
 export default function StewardshipProgress() {
-  const [activeCheckoutsCount, setActiveCheckoutsCount] = useState(0);
-  const [totalLogEntries, setTotalLogEntries] = useState(0);
-  const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
-  const [routineCompletionsCount, setRoutineCompletionsCount] = useState(0);
+  const [users, setUsers] = useState<AllowedUser[]>([]);
+  const [activities, setActivities] = useState<ActivityDoc[]>([]);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
-  // Power Sequencing Game State
-  const [seqMode, setSeqMode] = useState<'on' | 'off'>('on');
-  const [gameState, setGameState] = useState<'idle' | 'running' | 'success' | 'failed'>('idle');
-  const [correctClicks, setCorrectClicks] = useState<string[]>([]);
-  const [feedbackMsg, setFeedbackMsg] = useState('');
+  // Activity-log form state
+  const [formUserId, setFormUserId] = useState('');
+  const [formType, setFormType] = useState('composition');
+  const [formDesc, setFormDesc] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Sockets & hardware switches:
-  const sequencingOnOrder = ['Power Strip', 'Audio Interface', 'DAW Computer', 'Studio Monitors'];
-  const sequencingOffOrder = ['Studio Monitors', 'DAW Computer', 'Audio Interface', 'Power Strip'];
-
-  // Cable Coiler simulator state
-  const [coilingStep, setCoilingStep] = useState(0);
-  const [coiledList, setCoiledList] = useState<string[]>([]);
-  const [cableError, setCableError] = useState<string | null>(null);
-
-  const stepsCable = [
-    { title: "Step 1: The 'Over' Loop", desc: "Hold the cable in your non-dominant hand. Loop the cable forward naturally over your thumb." },
-    { title: "Step 2: The 'Under' Loop", desc: "Twist your wrist outwards, grab the cable from underneath, and coil it in the opposite direction to neutralize radial torque." },
-    { title: "Step 3: Keep alternating", desc: "Repeat: One Over loop, then one Under loop. This prevents internal copper strands from tangling." },
-    { title: "Step 4: Secure the end", desc: "Never tie a knot! Secure with a Velcro cable tie and hang neatly on the wall hooks." }
-  ];
-
-  // Fetch real-time metrics and compile an activity feed
+  // ── Auth listener ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    // 1. Listen to instrument logs
-    const logsRef = collection(db, 'instrument_logs');
-    const logsUnsubscribe = onSnapshot(logsRef, (snapshot) => {
-      let active = 0;
-      let total = 0;
-      const checkoutActivities: ActivityItem[] = [];
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        total++;
-        if (!data.returned) {
-          active++;
-          checkoutActivities.push({
-            id: `co-${docSnap.id}`,
-            type: 'checkout',
-            title: `Checkout: ${data.instrumentName}`,
-            user: data.studentName,
-            date: data.checkInTime,
-            timeFormatted: new Date(data.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            desc: `Tasked for ${data.purpose}`
-          });
-        } else {
-          checkoutActivities.push({
-            id: `ret-${docSnap.id}`,
-            type: 'return',
-            title: `Returned: ${data.instrumentName}`,
-            user: data.studentName,
-            date: data.checkOutTime || data.checkInTime,
-            timeFormatted: new Date(data.checkOutTime || data.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            desc: data.remarks || 'Returned ok'
-          });
-        }
-      });
-
-      setActiveCheckoutsCount(active);
-      setTotalLogEntries(total);
-
-      // Merge and sort activities with routines completions
-      setRecentActivities(prev => {
-        const routinesOnly = prev.filter(x => x.type === 'routine');
-        const combined = [...routinesOnly, ...checkoutActivities];
-        return combined.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
-      });
-    }, (error) => {
-      console.error(error);
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setCurrentUserEmail(u?.email ?? null);
     });
-
-    // 2. Listen to routine tasks (specifically to build a timeline count and activities)
-    const tasksRef = collection(db, 'maintenance_tasks');
-    const tasksUnsubscribe = onSnapshot(tasksRef, (snapshot) => {
-      let count = 0;
-      const routineActivities: ActivityItem[] = [];
-
-      snapshot.forEach((docSnap) => {
-        const task = docSnap.data();
-        if (task.history && Array.isArray(task.history)) {
-          count += task.history.length;
-          task.history.forEach((h: any, idx: number) => {
-            routineActivities.push({
-              id: `rt-${docSnap.id}-${idx}`,
-              type: 'routine',
-              title: `Checked: ${task.title}`,
-              user: h.completedBy,
-              date: h.date + 'T12:00:00Z', // fallback parsing
-              timeFormatted: 'Completed Today',
-              desc: h.remarks
-            });
-          });
-        }
-      });
-
-      setRoutineCompletionsCount(count);
-
-      // Merge and sort
-      setRecentActivities(prev => {
-        const checkoutsOnly = prev.filter(x => x.type !== 'routine');
-        const combined = [...checkoutsOnly, ...routineActivities];
-        return combined.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
-      });
-
-    }, (error) => {
-      console.error(error);
-    });
-
-    return () => {
-      logsUnsubscribe();
-      tasksUnsubscribe();
-    };
+    return unsub;
   }, []);
 
-  // Power Sequencing handlers
-  const startGame = (type: 'on' | 'off') => {
-    setSeqMode(type);
-    setGameState('running');
-    setCorrectClicks([]);
-    setFeedbackMsg(`TRANS PANEL ARMED: Toggle power switches in precise routing order [To ${type.toUpperCase()}] to decouple back-EMF pop voltage.`);
-  };
+  // ── Firestore: allowed_users ──────────────────────────────────────────────────
+  useEffect(() => {
+    const q = query(collection(db, 'allowed_users'), orderBy('name'));
+    const unsub = onSnapshot(q, (snap) => {
+      const list: AllowedUser[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...d.data() } as AllowedUser);
+      });
+      setUsers(list);
+    }, (err) => console.error('allowed_users listener error:', err));
+    return unsub;
+  }, []);
 
-  const handlePowerClick = (item: string) => {
-    if (gameState !== 'running') return;
+  // ── Firestore: activity_log ───────────────────────────────────────────────────
+  useEffect(() => {
+    const q = query(collection(db, 'activity_log'), orderBy('loggedAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const list: ActivityDoc[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...d.data() } as ActivityDoc);
+      });
+      setActivities(list);
+    }, (err) => console.error('activity_log listener error:', err));
+    return unsub;
+  }, []);
 
-    const expectedOrder = seqMode === 'on' ? sequencingOnOrder : sequencingOffOrder;
-    const currentExpectIndex = correctClicks.length;
-    const expectedItem = expectedOrder[currentExpectIndex];
+  // ── Derive current user role ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUserEmail) { setCurrentUserRole(null); return; }
+    const match = users.find((u) => u.email === currentUserEmail);
+    setCurrentUserRole(match?.role ?? null);
+  }, [currentUserEmail, users]);
 
-    if (item === expectedItem) {
-      const updatedClicks = [...correctClicks, item];
-      setCorrectClicks(updatedClicks);
-      
-      if (updatedClicks.length === expectedOrder.length) {
-        setGameState('success');
-        setFeedbackMsg(`✨ DRILL PERFECT: Sequences matching theoretical models! Protected voice coils from transient damage.`);
-      } else {
-        setFeedbackMsg(`SUCCESSFUL TRIG: Next expected toggle is -> ${expectedOrder[updatedClicks.length].toUpperCase()}`);
+  const canLog = currentUserRole === 'admin' || currentUserRole === 'junior_admin';
+
+  // ── Leaderboard computation ───────────────────────────────────────────────────
+  const leaderboard: LeaderboardEntry[] = useMemo(() => {
+    const map = new Map<string, LeaderboardEntry>();
+
+    users.forEach((u) => {
+      map.set(u.email, {
+        user: u,
+        totalPoints: 0,
+        totalActivities: 0,
+        breakdown: {},
+        recentActivities: [],
+      });
+    });
+
+    activities.forEach((a) => {
+      const entry = map.get(a.userId);
+      if (!entry) return;
+      entry.totalPoints += a.points;
+      entry.totalActivities += 1;
+      entry.breakdown[a.activityType] = (entry.breakdown[a.activityType] || 0) + a.points;
+      if (entry.recentActivities.length < 10) {
+        entry.recentActivities.push(a);
       }
-    } else {
-      setGameState('failed');
-      if (seqMode === 'on' && item === 'Studio Monitors') {
-        setFeedbackMsg(`🚨 DAMAGE SIMULATED: Loud audio crackle/POP! Monitors engaged before source units line stabilization logic. Tweeter damage simulated.`);
-      } else if (seqMode === 'off' && item !== 'Studio Monitors' && !correctClicks.includes('Studio Monitors')) {
-        setFeedbackMsg(`🚨 DISCHARGE OUTLET TRIPPED: Amplifier still hot! Switch active monitors OFF first to prevent pop feedback!`);
-      } else {
-        setFeedbackMsg(`🚨 ORDER FAULT: Safe alignment broken. Up: Source OUTWARDS. Down: Monitors BACKWARDS.`);
-      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalPoints - a.totalPoints);
+  }, [users, activities]);
+
+  // ── Statistics ─────────────────────────────────────────────────────────────────
+  const totalActivities = activities.length;
+  const totalPoints = activities.reduce((s, a) => s + a.points, 0);
+  const activeStewards = users.length;
+  const topPerformer = leaderboard.length > 0 ? leaderboard[0] : null;
+
+  // ── Max points for bar scaling ────────────────────────────────────────────────
+  const maxPoints = leaderboard.length > 0 ? Math.max(leaderboard[0].totalPoints, 1) : 1;
+
+  // ── Submit activity ───────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formUserId || !formType || !formDesc.trim() || !currentUserEmail) return;
+    const targetUser = users.find((u) => u.email === formUserId);
+    if (!targetUser) return;
+
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, 'activity_log'), {
+        userId: targetUser.email,
+        userName: targetUser.name,
+        activityType: formType,
+        description: formDesc.trim(),
+        points: POINT_VALUES[formType] ?? 0,
+        loggedBy: currentUserEmail,
+        loggedAt: new Date().toISOString(),
+      });
+      setFormDesc('');
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Cable Alignment handlers
-  const handleCoilStepClick = (type: 'over' | 'under') => {
-    if (coiledList.length >= 6) return;
-
-    const expected = coiledList.length % 2 === 0 ? 'over' : 'under';
-    if (type === expected) {
-      setCableError(null);
-      const nextList = [...coiledList, type];
-      setCoiledList(nextList);
-      if (nextList.length === 6) {
-        setCoilingStep(3); // Secure wrap
-      } else {
-        setCoilingStep(nextList.length % 2 === 0 ? 0 : 1);
-      }
-    } else {
-      setCableError(`TENSION FAULT: Altenation broken. Laying two "${type.toUpperCase()}" wraps consecutively memory-bends the internal copper shields.`);
-      resetCableSim();
-    }
+  // ── Rank badge helper ─────────────────────────────────────────────────────────
+  const rankBadge = (rank: number) => {
+    if (rank === 1) return <span className="text-lg leading-none">🥇</span>;
+    if (rank === 2) return <span className="text-lg leading-none">🥈</span>;
+    if (rank === 3) return <span className="text-lg leading-none">🥉</span>;
+    return (
+      <span className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-400 font-mono">
+        {rank}
+      </span>
+    );
   };
 
-  const resetCableSim = () => {
-    setCoilingStep(0);
-    setCoiledList([]);
+  // ── Segmented bar for breakdown ───────────────────────────────────────────────
+  const BreakdownBar = ({ breakdown, total }: { breakdown: Record<string, number>; total: number }) => {
+    if (total === 0) return <div className="h-3 rounded-full bg-zinc-800 w-full" />;
+    const entries = Object.entries(breakdown).filter(([, v]) => v > 0);
+    const SEGMENT_COLORS: Record<string, string> = {
+      composition: 'bg-sky-500', recording: 'bg-rose-500', mixing: 'bg-violet-500',
+      practice: 'bg-amber-500', maintenance: 'bg-zinc-500', equipment_setup: 'bg-cyan-500',
+      teaching: 'bg-emerald-500', performance: 'bg-yellow-500',
+    };
+    return (
+      <div className="h-3 rounded-full overflow-hidden flex w-full bg-zinc-800">
+        {entries.map(([type, pts]) => (
+          <div
+            key={type}
+            className={`${SEGMENT_COLORS[type] || 'bg-zinc-600'} transition-all`}
+            style={{ width: `${(pts / total) * 100}%` }}
+            title={`${ACTIVITY_META[type]?.label ?? type}: ${pts} pts`}
+          />
+        ))}
+      </div>
+    );
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div id="progress-layout" className="space-y-6 font-sans text-sm text-zinc-300">
-      
-      {/* Title */}
-      <div className="border-b border-zinc-850 pb-3">
+    <div className="space-y-6 font-sans text-sm text-zinc-300">
+      {/* ── Header ──────────────────────────────────────────────────────────────── */}
+      <div className="border-b border-zinc-800 pb-3">
         <h2 className="text-base font-semibold font-display text-zinc-100 flex items-center gap-2">
-          <TrendingUp size={18} className="text-emerald-400" />
-          Stewardship Progress & Training Cabin
+          <Trophy size={18} className="text-emerald-400" />
+          🏆 STEWARDSHIP LEADERBOARD
         </h2>
-        <p className="text-xs text-zinc-400 mt-1">Audit real-time metrics, live log timestamps, and train on safe hardware simulators.</p>
+        <p className="text-xs text-zinc-400 mt-1">
+          Track steward performance, log activities, and celebrate top contributors.
+        </p>
       </div>
 
-      {/* Main real-time stat blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-2 shadow-sm select-none">
-          <h4 className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-            <Activity size={13} className="text-emerald-400 animate-pulse" /> Live Studio Activity
-          </h4>
-          <p className="text-sm font-bold text-zinc-100">{activeCheckoutsCount} Instruments Active</p>
-          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-850">
-            <div className="bg-emerald-500 h-full transition-all" style={{ width: `${Math.min(activeCheckoutsCount * 20, 100)}%` }}></div>
+      {/* ── Statistics Cards ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'TOTAL ACTIVITIES', value: totalActivities, icon: <Activity size={14} className="text-emerald-400" />, accent: 'text-emerald-400' },
+          { label: 'TOTAL POINTS', value: totalPoints.toLocaleString(), icon: <Star size={14} className="text-amber-400" />, accent: 'text-amber-400' },
+          { label: 'ACTIVE STEWARDS', value: activeStewards, icon: <User size={14} className="text-sky-400" />, accent: 'text-sky-400' },
+          { label: 'TOP PERFORMER', value: topPerformer ? topPerformer.user.name : '—', icon: <TrendingUp size={14} className="text-yellow-400" />, accent: 'text-yellow-400' },
+        ].map((card) => (
+          <div key={card.label} className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl shadow-sm select-none">
+            <h4 className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              {card.icon} {card.label}
+            </h4>
+            <p className={`text-sm font-bold ${card.accent} truncate`}>{card.value}</p>
           </div>
-          <span className="text-[11px] text-zinc-550 text-zinc-500 mt-1 block">Active gear in room right now</span>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-2 shadow-sm select-none">
-          <h4 className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-            <ClipboardList size={13} className="text-indigo-400" /> Routines Completed
-          </h4>
-          <p className="text-sm font-bold text-zinc-100">{routineCompletionsCount} Audited Checks Done</p>
-          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-850">
-            <div className="bg-indigo-500 h-full transition-all" style={{ width: `${Math.min(routineCompletionsCount * 5, 100)}%` }}></div>
-          </div>
-          <span className="text-[11px] text-zinc-550 text-zinc-500 mt-1 block">All-time maintenance tasks registered</span>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-2 shadow-sm select-none">
-          <h4 className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-            <TrendingUp size={13} className="text-emerald-400" /> Total Log Syncs
-          </h4>
-          <p className="text-sm font-bold text-zinc-100">{totalLogEntries} Session Syncs</p>
-          <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-850">
-            <div className="bg-sky-400 h-full transition-all" style={{ width: `${Math.min(totalLogEntries * 3, 100)}%` }}></div>
-          </div>
-          <span className="text-[11px] text-zinc-550 text-zinc-500 mt-1 block">Check-ins recorded securely in database</span>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* Left Side: Real-time Live activity lead stream */}
-        <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800/80 p-5 rounded-xl space-y-4 shadow-sm">
-          <div className="border-b border-zinc-800 pb-3">
-            <h3 className="font-semibold text-zinc-200 text-xs flex items-center gap-1.5 uppercase tracking-wide font-display">
-              <Clock size={13} className="text-zinc-400" />
-              Live Activity Ledger
-            </h3>
-            <p className="text-[11px] text-zinc-500 mt-1">Real-time actions in Sai Tunes</p>
-          </div>
-
-          <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1 select-all">
-            {recentActivities.length === 0 ? (
-              <div className="text-center py-20 text-zinc-500 italic text-xs">
-                <Activity size={24} className="mx-auto mb-2 text-zinc-800" />
-                No events processed yet.
-              </div>
-            ) : (
-              recentActivities.map((act) => (
-                <div key={act.id} className="p-3 bg-zinc-950/40 border border-zinc-850 rounded-lg block select-text text-xs leading-normal shadow-xs">
-                  <div className="flex justify-between items-start gap-2">
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wider ${
-                      act.type === 'checkout' 
-                        ? 'bg-sky-500/10 border border-sky-500/20 text-sky-400' 
-                        : act.type === 'return' 
-                          ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold' 
-                          : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
-                    }`}>
-                      {act.type}
-                    </span>
-                    <span className="text-[10px] text-zinc-550 text-zinc-500 font-medium select-none">{act.timeFormatted}</span>
-                  </div>
-                  <strong className="block text-xs text-zinc-200 font-medium mt-2 leading-snug">{act.title}</strong>
-                  <p className="text-[11px] text-zinc-400 italic mt-1 pl-2 border-l border-zinc-800">By {act.user.split(' ')[0]} &mdash; "{act.desc}"</p>
-                </div>
-              ))
-            )}
-          </div>
+      {/* ── Empty state: no users ───────────────────────────────────────────────── */}
+      {users.length === 0 && (
+        <div className="text-center py-16 bg-zinc-900 border border-zinc-800/80 rounded-xl">
+          <User size={28} className="mx-auto mb-3 text-zinc-700" />
+          <p className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">
+            No stewards yet. Admin can add users from the admin panel.
+          </p>
         </div>
+      )}
 
-        {/* Right Side: Interactive Simulators for student checklist drills */}
-        <div className="lg:col-span-8 space-y-5">
-          
-          {/* Power sequence drill */}
-          <div className="bg-zinc-900 border border-zinc-800/80 p-5 rounded-xl space-y-4 shadow-sm">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-3 flex-wrap gap-2">
-              <div>
-                <h3 className="font-semibold text-zinc-200 flex items-center gap-1.5 text-xs uppercase tracking-wide font-display">
-                  <Zap size={14} className="text-amber-400 animate-pulse" />
-                  Power Sequence Simulator
+      {/* ── Main layout: leaderboard (left) + activity log (right) ──────────── */}
+      {users.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* ── Leaderboard ──────────────────────────────────────────────────────── */}
+          <div className="lg:col-span-7 space-y-3">
+            <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-zinc-800 flex items-center gap-2">
+                <BarChart3 size={14} className="text-emerald-400" />
+                <h3 className="font-semibold text-zinc-200 text-xs uppercase tracking-wide font-display">
+                  RANKED LEADERBOARD
                 </h3>
-                <p className="text-[11px] text-zinc-500 mt-1">Test power routing transients to protect reference monitors</p>
+                <span className="ml-auto text-[10px] text-zinc-500 font-mono">{leaderboard.length} STEWARDS</span>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startGame('on')}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-zinc-100 rounded-lg text-[10px] font-semibold uppercase cursor-pointer transition-colors"
-                >
-                  Boot Turn-On Drill
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startGame('off')}
-                  className="px-3 py-1.5 bg-zinc-950 text-zinc-400 border border-zinc-800 hover:bg-zinc-900 rounded-lg text-[10px] font-semibold uppercase cursor-pointer transition-colors"
-                >
-                  Shut-Down Drill
-                </button>
-              </div>
-            </div>
 
-            {gameState === 'idle' ? (
-              <div className="text-center py-8 bg-zinc-950/20 rounded-xl border border-dashed border-zinc-800 text-xs text-zinc-500 space-y-1.5">
-                <Zap size={20} className="mx-auto text-amber-500" />
-                <p className="font-semibold text-zinc-400">Power Transient Trainer Ready</p>
-                <p className="px-6 text-[11px] text-zinc-500 max-w-lg mx-auto">Select a boot or shut-down drill sequence above to practice correct studio hardware alignment.</p>
-              </div>
-            ) : (
-              <div className="space-y-4 select-none">
-                <div className={`p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2 ${
-                  gameState === 'success' 
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                    : gameState === 'failed' 
-                      ? 'bg-red-500/10 text-red-400 border-red-500/20' 
-                      : 'bg-zinc-950 text-zinc-400 border-zinc-850'
-                }`}>
-                  {gameState === 'failed' ? <AlertOctagon size={14} className="text-red-400 mt-0.5 flex-shrink-0" /> : <Sparkles size={14} className="text-emerald-400 mt-0.5 flex-shrink-0" />}
-                  <p>{feedbackMsg}</p>
-                </div>
+              <div className="divide-y divide-zinc-800/60 max-h-[620px] overflow-y-auto">
+                {leaderboard.map((entry, idx) => {
+                  const rank = idx + 1;
+                  const isExpanded = expandedUserId === entry.user.id;
+                  const roleStyle = ROLE_STYLES[entry.user.role];
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { name: 'Power Strip', desc: 'Main Suppressor', icon: '🔌' },
-                    { name: 'Audio Interface', desc: 'Scarlett Preamps', icon: '🎛️' },
-                    { name: 'DAW Computer', desc: 'Station Unit', icon: '🖥️' },
-                    { name: 'Studio Monitors', desc: 'JBL Speakers', icon: '🔊' }
-                  ].map(item => {
-                    const isClicked = correctClicks.includes(item.name);
-                    return (
+                  return (
+                    <div key={entry.user.id} className="group">
+                      {/* ── Row ─────────────────────────────────────────────────── */}
                       <button
-                        key={item.name}
                         type="button"
-                        onClick={() => handlePowerClick(item.name)}
-                        disabled={gameState !== 'running' || isClicked}
-                        className={`p-3.5 rounded-xl border text-center transition-all flex flex-col justify-between h-24 cursor-pointer ${
-                          isClicked 
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-bold' 
-                            : gameState === 'failed'
-                              ? 'bg-zinc-950 text-zinc-700 border-zinc-900 grayscale'
-                              : 'bg-zinc-950 hover:bg-zinc-900 border-zinc-800 active:scale-95 text-zinc-300'
-                        }`}
+                        onClick={() => setExpandedUserId(isExpanded ? null : entry.user.id)}
+                        className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-800/40 transition-all cursor-pointer text-left"
                       >
-                        <span className="text-xl block">{item.icon}</span>
-                        <div>
-                          <h4 className="font-semibold text-[10px] uppercase leading-none">{item.name}</h4>
-                          <span className="text-[9px] text-zinc-500 block mt-1 uppercase tracking-tight">{item.desc}</span>
+                        {/* Rank */}
+                        <div className="flex-shrink-0 w-8 flex justify-center">{rankBadge(rank)}</div>
+
+                        {/* Name + role */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-semibold text-zinc-100 block truncate">{entry.user.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-wider mt-0.5 inline-block ${roleStyle.bg} ${roleStyle.text}`}>
+                            {roleStyle.label}
+                          </span>
+                        </div>
+
+                        {/* Points pill */}
+                        <span className="flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
+                          {entry.totalPoints} PTS
+                        </span>
+
+                        {/* Points bar */}
+                        <div className="hidden sm:block w-28 flex-shrink-0">
+                          <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 transition-all rounded-full"
+                              style={{ width: `${(entry.totalPoints / maxPoints) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Expand chevron */}
+                        <div className="flex-shrink-0 text-zinc-500">
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </div>
                       </button>
-                    );
-                  })}
-                </div>
 
-                <div className="flex justify-between items-center text-xs pt-2 border-t border-zinc-800 text-zinc-500">
-                  <span>Target Sequence Mode: <strong className="uppercase text-emerald-400 font-semibold">{seqMode}</strong></span>
-                  <button 
-                    type="button"
-                    onClick={() => setGameState('idle')} 
-                    className="flex items-center gap-1 hover:text-zinc-300 font-semibold uppercase cursor-pointer"
-                  >
-                    <RotateCcw size={11} /> Reset Board
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Cable Alignment trainer */}
-          <div className="bg-zinc-900 border border-zinc-800/80 p-5 rounded-xl space-y-4 shadow-sm">
-            <div className="border-b border-zinc-800 pb-3">
-              <h3 className="font-semibold text-zinc-200 flex items-center gap-1.5 text-xs uppercase tracking-wide font-display">
-                <Disc className="text-emerald-400 animate-spin" style={{ animationDuration: '8s' }} size={13} />
-                Over-Under Cable Stewardship Trainer
-              </h3>
-              <p className="text-[11px] text-zinc-500 mt-1">Interactive simulation to coil music cables and neutralize tension memory</p>
-            </div>
-
-            {cableError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/25 text-red-400 text-xs rounded-lg tracking-wide leading-normal flex items-start justify-between">
-                <div>
-                  <strong className="block uppercase font-bold text-xs">⚠️ Tension Fault:</strong>
-                  {cableError}
-                </div>
-                <button type="button" onClick={() => setCableError(null)} className="text-red-400 hover:text-red-200 font-semibold ml-2 text-xs uppercase cursor-pointer">Dismiss</button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs select-none">
-              <div className="p-4 bg-zinc-950/40 rounded-xl border border-zinc-800 flex flex-col justify-between space-y-3">
-                <div>
-                  <span className="font-semibold text-[10px] uppercase tracking-wider text-zinc-500 block border-b border-zinc-900 pb-1 mb-2">Active Step Instruction</span>
-                  <div className="space-y-1">
-                    <h4 className="font-semibold text-zinc-200 tracking-wide text-xs">{stepsCable[coilingStep].title}</h4>
-                    <p className="text-zinc-400 leading-relaxed text-[11px]">{stepsCable[coilingStep].desc}</p>
-                  </div>
-                </div>
-
-                {/* Cable Reel visualization */}
-                <div className="pt-3 flex justify-center gap-1.5 items-center min-h-[44px] border-t border-zinc-900/60">
-                  {coiledList.length === 0 ? (
-                    <span className="text-zinc-600 italic uppercase font-semibold text-[9px] tracking-wider">Empty Cable Reel</span>
-                  ) : (
-                    coiledList.map((coil, idx) => (
-                      <span 
-                        key={idx} 
-                        className={`h-6 px-3.5 rounded-full border flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider ${
-                          coil === 'over' 
-                            ? 'bg-sky-500/10 border-sky-500/40 text-sky-400' 
-                            : 'bg-purple-500/10 border-purple-500/40 text-purple-400'
+                      {/* ── Expanded profile ──────────────────────────────────── */}
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ${
+                          isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
                         }`}
                       >
-                        {coil}
-                      </span>
-                    ))
-                  )}
+                        <div className="px-5 pb-5 pt-2 bg-zinc-950/40 border-t border-zinc-800/40 space-y-4">
+                          {/* Profile info */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[
+                              { icon: <User size={12} />, label: 'NAME', value: entry.user.name },
+                              { icon: <Mail size={12} />, label: 'EMAIL', value: entry.user.email },
+                              { icon: <Hash size={12} />, label: 'ROLE', value: roleStyle.label },
+                              { icon: <Calendar size={12} />, label: 'JOINED', value: entry.user.addedAt ? new Date(entry.user.addedAt).toLocaleDateString() : '—' },
+                            ].map((f) => (
+                              <div key={f.label} className="bg-zinc-900 border border-zinc-800/60 rounded-lg p-2.5">
+                                <span className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                                  {f.icon} {f.label}
+                                </span>
+                                <p className="text-[11px] text-zinc-200 font-medium mt-1 truncate">{f.value}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Breakdown bar */}
+                          <div>
+                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold block mb-1.5">POINTS BREAKDOWN</span>
+                            <BreakdownBar breakdown={entry.breakdown} total={entry.totalPoints} />
+                            {entry.totalPoints > 0 && (
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                                {Object.entries(entry.breakdown)
+                                  .filter(([, v]) => v > 0)
+                                  .sort(([, a], [, b]) => b - a)
+                                  .map(([type, pts]) => {
+                                    const meta = ACTIVITY_META[type];
+                                    return (
+                                      <span key={type} className={`text-[10px] flex items-center gap-1 ${meta?.color ?? 'text-zinc-400'}`}>
+                                        {meta?.icon} {meta?.label ?? type}: <strong className="font-mono">{pts}</strong>
+                                      </span>
+                                    );
+                                  })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Total activities count */}
+                          <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+                            <Activity size={12} />
+                            <span className="uppercase tracking-wider font-semibold">TOTAL ACTIVITIES:</span>
+                            <span className="font-mono text-zinc-200 font-bold">{entry.totalActivities}</span>
+                          </div>
+
+                          {/* Recent activities */}
+                          <div>
+                            <span className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold block mb-2">RECENT ACTIVITIES</span>
+                            {entry.recentActivities.length === 0 ? (
+                              <p className="text-[11px] text-zinc-600 italic">No activities logged yet.</p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                {entry.recentActivities.map((a) => {
+                                  const meta = ACTIVITY_META[a.activityType];
+                                  return (
+                                    <div key={a.id} className="flex items-start gap-2 p-2 bg-zinc-900 border border-zinc-800/50 rounded-lg text-[11px]">
+                                      <span className={`mt-0.5 flex-shrink-0 ${meta?.color ?? 'text-zinc-400'}`}>{meta?.icon ?? <Activity size={13} />}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-zinc-200 font-medium">{a.description}</span>
+                                        <span className="block text-[9px] text-zinc-500 mt-0.5">
+                                          {new Date(a.loggedAt).toLocaleDateString()} · {new Date(a.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
+                                      <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
+                                        +{a.points}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right panel: Log form + recent feed ──────────────────────────────── */}
+          <div className="lg:col-span-5 space-y-5">
+            {/* ── Activity Log Form (admin / junior_admin only) ──────────────── */}
+            {canLog && (
+              <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-zinc-800 flex items-center gap-2">
+                  <Plus size={14} className="text-emerald-400" />
+                  <h3 className="font-semibold text-zinc-200 text-xs uppercase tracking-wide font-display">
+                    LOG ACTIVITY
+                  </h3>
                 </div>
+                <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                  {/* User select */}
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold block mb-1">STEWARD</label>
+                    <select
+                      value={formUserId}
+                      onChange={(e) => setFormUserId(e.target.value)}
+                      required
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors cursor-pointer"
+                    >
+                      <option value="">SELECT STEWARD...</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.email}>{u.name} ({u.email})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Activity type */}
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold block mb-1">ACTIVITY TYPE</label>
+                    <select
+                      value={formType}
+                      onChange={(e) => setFormType(e.target.value)}
+                      required
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors cursor-pointer"
+                    >
+                      {Object.entries(ACTIVITY_META).map(([key, meta]) => (
+                        <option key={key} value={key}>{meta.label} (+{POINT_VALUES[key]} PTS)</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold block mb-1">DESCRIPTION</label>
+                    <textarea
+                      value={formDesc}
+                      onChange={(e) => setFormDesc(e.target.value)}
+                      required
+                      rows={3}
+                      placeholder="Describe the activity..."
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors resize-none placeholder:text-zinc-600"
+                    />
+                  </div>
+
+                  {/* Points preview */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                      <Star size={11} className="text-amber-400" /> POINTS AWARDED
+                    </span>
+                    <span className="text-sm font-bold font-mono text-emerald-400">+{POINT_VALUES[formType] ?? 0}</span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !formUserId || !formDesc.trim()}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-100 rounded-lg text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Plus size={12} />
+                    {submitting ? 'LOGGING...' : 'LOG ACTIVITY'}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* ── Recent Activity Feed ──────────────────────────────────────────── */}
+            <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-zinc-800 flex items-center gap-2">
+                <Clock size={14} className="text-zinc-400" />
+                <h3 className="font-semibold text-zinc-200 text-xs uppercase tracking-wide font-display">
+                  RECENT ACTIVITY FEED
+                </h3>
+                <span className="ml-auto text-[10px] text-zinc-500 font-mono">{Math.min(activities.length, 20)} LATEST</span>
               </div>
 
-              {/* Interaction Buttons */}
-              <div className="flex flex-col justify-between p-4 bg-zinc-950/40 border border-zinc-800 rounded-xl space-y-3">
-                <div>
-                  <span className="font-semibold text-[10px] uppercase tracking-wider text-zinc-500 block border-b border-zinc-900 pb-1 mb-2">Coil Practice</span>
-                  <p className="text-[11px] leading-relaxed text-zinc-400">
-                    Alternating Over and Under loops creates a neutral plane where copper fibers exert zero strain.
-                  </p>
-                </div>
-
-                {coiledList.length < 6 ? (
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleCoilStepClick('over')}
-                      className="py-2.5 bg-zinc-900 hover:bg-zinc-850 active:scale-95 transition-all text-sky-400 border border-sky-500/20 font-semibold rounded-lg cursor-pointer text-center flex flex-col items-center justify-center uppercase text-[10px] tracking-wide"
-                    >
-                      Coil OVER
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCoilStepClick('under')}
-                      className="py-2.5 bg-zinc-900 hover:bg-zinc-850 active:scale-95 transition-all text-purple-400 border border-purple-500/20 font-semibold rounded-lg cursor-pointer text-center flex flex-col items-center justify-center uppercase text-[10px] tracking-wide"
-                    >
-                      Coil UNDER
-                    </button>
+              <div className="divide-y divide-zinc-800/40 max-h-[480px] overflow-y-auto">
+                {activities.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Activity size={24} className="mx-auto mb-2 text-zinc-800" />
+                    <p className="text-[11px] text-zinc-500 uppercase tracking-wide font-semibold">No activities logged yet.</p>
                   </div>
                 ) : (
-                  <div className="p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-center space-y-2 uppercase">
-                    <p className="font-bold text-xs">✓ Cable coiled successfully!</p>
-                    <button 
-                      type="button"
-                      onClick={resetCableSim}
-                      className="mx-auto mt-1 flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-zinc-100 rounded-lg text-[10px] font-semibold px-3 py-1.5 cursor-pointer transition-colors"
-                    >
-                      <RotateCcw size={10} /> RESTART COILING
-                    </button>
-                  </div>
+                  activities.slice(0, 20).map((a) => {
+                    const meta = ACTIVITY_META[a.activityType];
+                    return (
+                      <div key={a.id} className="px-5 py-3 flex items-start gap-3 hover:bg-zinc-800/20 transition-colors">
+                        <span className={`mt-0.5 flex-shrink-0 ${meta?.color ?? 'text-zinc-400'}`}>
+                          {meta?.icon ?? <Activity size={13} />}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-zinc-200 truncate">{a.userName}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${
+                              meta ? 'bg-zinc-800 border-zinc-700/60 text-zinc-300' : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                            }`}>
+                              {meta?.label ?? a.activityType}
+                            </span>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
+                              +{a.points}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed truncate">{a.description}</p>
+                          <span className="text-[9px] text-zinc-600 mt-0.5 block">
+                            {new Date(a.loggedAt).toLocaleDateString()} · {new Date(a.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {a.loggedBy !== a.userId && (
+                              <span className="ml-1 text-zinc-600">· logged by {a.loggedBy}</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
           </div>
-
         </div>
-
-      </div>
+      )}
     </div>
   );
 }

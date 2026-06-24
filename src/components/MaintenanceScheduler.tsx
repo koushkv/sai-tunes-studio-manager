@@ -23,7 +23,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { MaintenanceTask } from '../types';
-import { INITIAL_TASKS } from '../data/initialData';
 
 interface MaintenanceSchedulerProps {
   currentUser: {
@@ -52,32 +51,18 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
 
   const [loading, setLoading] = useState(true);
 
-  // Sync tasks from Firestore
+  // Sync tasks from Firestore — no auto-seeding, starts empty
   useEffect(() => {
     const tasksRef = collection(db, 'maintenance_tasks');
-    const unsubscribe = onSnapshot(tasksRef, async (snapshot) => {
+    const unsubscribe = onSnapshot(tasksRef, (snapshot) => {
       const fetchedTasks: MaintenanceTask[] = [];
       snapshot.forEach((docSnap) => {
         fetchedTasks.push(docSnap.data() as MaintenanceTask);
       });
 
-      // Seeding database if blank on start
-      if (fetchedTasks.length === 0) {
-        setLoading(true);
-        try {
-          for (const task of INITIAL_TASKS) {
-            await setDoc(doc(db, 'maintenance_tasks', task.id), task);
-          }
-        } catch (err) {
-          console.error("Error seeding tasks database:", err);
-        }
-        setLoading(false);
-      } else {
-        // Sort tasks logically by ID
-        fetchedTasks.sort((a, b) => a.id.localeCompare(b.id));
-        setTasks(fetchedTasks);
-        setLoading(false);
-      }
+      fetchedTasks.sort((a, b) => a.id.localeCompare(b.id));
+      setTasks(fetchedTasks);
+      setLoading(false);
     }, (error) => {
       console.error("Firestore chores subscription error:", error);
       setLoading(false);

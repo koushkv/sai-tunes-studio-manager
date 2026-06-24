@@ -1,466 +1,665 @@
-import React, { useState, useEffect } from 'react';
-import { db, collection, addDoc, doc, updateDoc, onSnapshot, query, orderBy } from '../lib/firebase';
-import { 
-  Music, 
-  Clock, 
-  LogIn, 
-  LogOut, 
-  Sparkles, 
-  CheckCircle, 
-  History, 
-  Search, 
-  FileText,
-  AlertTriangle 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  db,
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from '../lib/firebase';
+import {
+  Package,
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
+  X,
+  ArrowRightLeft,
+  RotateCcw,
+  User,
+  MapPin,
+  Tag,
 } from 'lucide-react';
+import { Asset, AssetStatus } from '../types';
 
 interface InstrumentLogbookProps {
-  currentUser: {
-    email: string;
-    displayName: string;
-  } | null;
+  currentUser: { email: string; displayName: string; photoURL: string | null };
   isAdmin: boolean;
 }
 
-interface InstrumentLog {
+interface SessionLog {
   id: string;
-  instrumentName: string;
   studentName: string;
   rollNumber: string;
+  assetId: string;
+  assetName: string;
   purpose: string;
   checkInTime: string;
   checkOutTime?: string;
-  returned: boolean;
-  remarks?: string;
-  verifiedSolder?: boolean;
+  status: 'active' | 'completed';
+  notes?: string;
 }
 
-const DEFAULT_INSTRUMENTS = [
-  "Fender Stratocaster Electric Guitar",
-  "Scarlett 18i20 Audio Interface",
-  "Yamaha Motif XS8 MIDI Arranger",
-  "Taylor 114e Acoustic Guitar",
-  "Audio-Technica ATH-M50x Headphones",
-  "Shure SM57 Dynamic Microphone",
-  "SSSIHL Studio Monitor System A",
-  "Novation Launchkey Pad Controller",
-  "Sai Harmonium (Scale Standard)"
-];
+const STATUS_STYLES: Record<AssetStatus, { bg: string; text: string; label: string }> = {
+  operational: { bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400', label: 'Operational' },
+  needs_repair: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', label: 'Needs Repair' },
+  maintenance: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', label: 'Maintenance' },
+  missing: { bg: 'bg-zinc-500/10 border-zinc-500/20', text: 'text-zinc-400', label: 'Missing' },
+};
+
+const EMPTY_ASSET = {
+  name: '', category: '', model: '', serialNumber: '', location: '', status: 'operational' as AssetStatus, remarks: '',
+};
 
 export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLogbookProps) {
-  const [logs, setLogs] = useState<InstrumentLog[]>([]);
-  const [instrument, setInstrument] = useState(DEFAULT_INSTRUMENTS[0]);
-  const [customInstrument, setCustomInstrument] = useState('');
-  const [useCustomInstrument, setUseCustomInstrument] = useState(false);
-  
-  const [studentName, setStudentName] = useState(currentUser?.displayName || '');
-  const [rollNumber, setRollNumber] = useState('');
-  const [purpose, setPurpose] = useState('Composition');
-  const [customPurpose, setCustomPurpose] = useState('');
-  
-  const [deskClean, setDeskClean] = useState(false);
-  const [cablesProper, setCablesProper] = useState(false);
-  const [noFoodDrink, setNoFoodDrink] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [sessions, setSessions] = useState<SessionLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Filters
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [sessionFilter, setSessionFilter] = useState<'active' | 'completed' | 'all'>('active');
 
-  // Clean form prefill
-  useEffect(() => {
-    if (currentUser) {
-      setStudentName(currentUser.displayName || '');
-    }
-  }, [currentUser]);
+  // Asset form (add/edit)
+  const [showAssetForm, setShowAssetForm] = useState(false);
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [assetForm, setAssetForm] = useState(EMPTY_ASSET);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
-  // Sync real-time instrument logs from Firestore
+  // Checkout form
+  const [showCheckoutForm, setShowCheckoutForm] = useState(false);
+  const [checkoutAssetId, setCheckoutAssetId] = useState('');
+  const [checkoutName, setCheckoutName] = useState(currentUser.displayName);
+  const [checkoutRoll, setCheckoutRoll] = useState('');
+  const [checkoutPurpose, setCheckoutPurpose] = useState('composition');
+
+  // Return state
+  const [returningSessionId, setReturningSessionId] = useState<string | null>(null);
+  const [returnNotes, setReturnNotes] = useState('');
+
+  // Sync assets from Firestore
   useEffect(() => {
-    const logsRef = collection(db, 'instrument_logs');
-    const q = query(logsRef, orderBy('checkInTime', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const parsedLogs: InstrumentLog[] = [];
-      snapshot.forEach((doc) => {
-        parsedLogs.push({ id: doc.id, ...doc.data() } as InstrumentLog);
+    const assetsRef = collection(db, 'assets');
+    const unsubAssets = onSnapshot(assetsRef, (snapshot) => {
+      const items: Asset[] = [];
+      snapshot.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() } as Asset);
       });
-      setLogs(parsedLogs);
-    }, (error) => {
-      console.error("Error loading logs from Firestore:", error);
+      items.sort((a, b) => a.name.localeCompare(b.name));
+      setAssets(items);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching assets:', err);
+      setLoading(false);
     });
 
-    return () => unsubscribe();
+    const logsRef = collection(db, 'instrument_logs');
+    const unsubLogs = onSnapshot(logsRef, (snapshot) => {
+      const items: SessionLog[] = [];
+      snapshot.forEach((docSnap) => {
+        items.push({ id: docSnap.id, ...docSnap.data() } as SessionLog);
+      });
+      items.sort((a, b) => (b.checkInTime || '').localeCompare(a.checkInTime || ''));
+      setSessions(items);
+    });
+
+    return () => { unsubAssets(); unsubLogs(); };
   }, []);
 
-  const handleCheckoutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentName || !rollNumber) {
-      setErrorMsg(" borrower name & roll details are mandatory.");
-      return;
-    }
-    if (!deskClean || !cablesProper || !noFoodDrink) {
-      setErrorMsg("Stewardship safety checks require review confirmation before taking studio modules.");
-      return;
-    }
+  // Dynamic categories from data
+  const categories = useMemo(() => {
+    const cats = [...new Set(assets.map(a => a.category).filter(Boolean))];
+    return cats.sort();
+  }, [assets]);
 
-    setSubmitting(true);
-    setErrorMsg('');
-    const finalInstrumentName = useCustomInstrument ? customInstrument.trim() : instrument;
-    
+  // Filter assets
+  const filteredAssets = useMemo(() => {
+    return assets.filter(a => {
+      const matchesCat = selectedCategory === 'all' || a.category === selectedCategory;
+      const matchesSearch = !searchQuery ||
+        a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.category.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCat && matchesSearch;
+    });
+  }, [assets, selectedCategory, searchQuery]);
+
+  // Filter sessions
+  const filteredSessions = useMemo(() => {
+    return sessions.filter(s => sessionFilter === 'all' || s.status === sessionFilter);
+  }, [sessions, sessionFilter]);
+
+  // Available assets for checkout (operational + not lent)
+  const availableAssets = assets.filter(a => a.status === 'operational' && !a.lentTo);
+
+  // === Asset CRUD ===
+  const openAddAsset = () => {
+    setAssetForm(EMPTY_ASSET);
+    setEditingAssetId(null);
+    setShowAssetForm(true);
+  };
+
+  const openEditAsset = (asset: Asset) => {
+    setAssetForm({
+      name: asset.name,
+      category: asset.category,
+      model: asset.model,
+      serialNumber: asset.serialNumber,
+      location: asset.location,
+      status: asset.status,
+      remarks: asset.remarks,
+    });
+    setEditingAssetId(asset.id);
+    setShowAssetForm(true);
+  };
+
+  const handleAssetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assetForm.name.trim()) return;
+
+    const data = {
+      name: assetForm.name.trim(),
+      category: assetForm.category.trim(),
+      model: assetForm.model.trim(),
+      serialNumber: assetForm.serialNumber.trim(),
+      location: assetForm.location.trim(),
+      status: assetForm.status,
+      remarks: assetForm.remarks.trim(),
+      lastChecked: new Date().toISOString().split('T')[0],
+    };
+
+    try {
+      if (editingAssetId) {
+        await updateDoc(doc(db, 'assets', editingAssetId), data);
+      } else {
+        await addDoc(collection(db, 'assets'), { ...data, lentTo: '', lentAt: '' });
+      }
+      setShowAssetForm(false);
+      setEditingAssetId(null);
+      setAssetForm(EMPTY_ASSET);
+    } catch (err) {
+      console.error('Error saving asset:', err);
+    }
+  };
+
+  const handleDeleteAsset = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'assets', id));
+      setDeletingAssetId(null);
+    } catch (err) {
+      console.error('Error deleting asset:', err);
+    }
+  };
+
+  // === Checkout ===
+  const handleCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkoutAssetId || !checkoutName.trim() || !checkoutRoll.trim()) return;
+
+    const asset = assets.find(a => a.id === checkoutAssetId);
+    if (!asset) return;
+
+    const now = new Date().toISOString();
+
     try {
       await addDoc(collection(db, 'instrument_logs'), {
-        instrumentName: finalInstrumentName,
-        studentName: studentName.trim(),
-        rollNumber: rollNumber.trim().toUpperCase(),
-        purpose: purpose === 'Custom' ? customPurpose.trim() : purpose,
-        checkInTime: new Date().toISOString(),
-        returned: false,
-        remarks: ''
+        studentName: checkoutName.trim(),
+        rollNumber: checkoutRoll.trim(),
+        assetId: checkoutAssetId,
+        assetName: asset.name,
+        purpose: checkoutPurpose,
+        checkInTime: now,
+        status: 'active',
       });
 
-      setSuccessMsg(`✓ CHEKOUT LOGGED! Enjoy your sessions with standard ${finalInstrumentName}!`);
-      // Reset form variables
-      setRollNumber('');
-      setDeskClean(false);
-      setCablesProper(false);
-      setNoFoodDrink(false);
-      setCustomInstrument('');
-      setCustomPurpose('');
-      
-      setTimeout(() => setSuccessMsg(''), 5000);
-    } catch (err: any) {
-      console.error("Checkout logging failed:", err);
-      setErrorMsg(`Database error: ${err.message}`);
-    } finally {
-      setSubmitting(false);
+      await updateDoc(doc(db, 'assets', checkoutAssetId), {
+        lentTo: checkoutName.trim(),
+        lentAt: now,
+      });
+
+      setShowCheckoutForm(false);
+      setCheckoutAssetId('');
+      setCheckoutRoll('');
+      setCheckoutPurpose('composition');
+    } catch (err) {
+      console.error('Error during checkout:', err);
     }
   };
 
-  const handleReturnItem = async (logId: string) => {
-    const confirmation = confirm("Confirm this instrument is returned in perfect, clean condition, cables coiled over-under, and workstation wiped down?");
-    if (!confirmation) return;
+  // === Return ===
+  const handleReturn = async (session: SessionLog) => {
+    const now = new Date().toISOString();
 
     try {
-      const docRef = doc(db, 'instrument_logs', logId);
-      await updateDoc(docRef, {
-        returned: true,
-        checkOutTime: new Date().toISOString(),
-        remarks: 'Wiped, cable coiled Over-Under. Perfect shape.'
+      await updateDoc(doc(db, 'instrument_logs', session.id), {
+        checkOutTime: now,
+        status: 'completed',
+        notes: returnNotes.trim() || 'Returned in good condition',
       });
-      setSuccessMsg("✓ INSTRUMENT SUCCESSFULLY RETURNED & VERIFIED!");
-      setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) {
-      console.error("Error checking in item:", err);
-      alert(`Database write error: ${err.message}`);
+
+      // Find the asset doc by matching session.assetId
+      const assetDoc = assets.find(a => a.id === session.assetId);
+      if (assetDoc) {
+        await updateDoc(doc(db, 'assets', session.assetId), {
+          lentTo: '',
+          lentAt: '',
+        });
+      }
+
+      setReturningSessionId(null);
+      setReturnNotes('');
+    } catch (err) {
+      console.error('Error during return:', err);
     }
   };
 
-  // Filter lists:
-  const activeCheckouts = logs.filter(l => !l.returned);
-  const historicLogs = logs.filter(l => l.returned);
-
-  const filteredHistory = historicLogs.filter(log => {
-    const term = searchQuery.toLowerCase();
-    return (
-      log.studentName.toLowerCase().includes(term) ||
-      log.instrumentName.toLowerCase().includes(term) ||
-      log.rollNumber.toLowerCase().includes(term) ||
-      (log.remarks || '').toLowerCase().includes(term)
-    );
-  });
+  const formatDateTime = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' +
+        d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    } catch { return iso; }
+  };
 
   return (
-    <div id="instruments-panel" className="space-y-6 font-sans text-sm text-zinc-300">
-      
-      {/* Title */}
+    <div className="space-y-6 font-sans text-sm text-zinc-300">
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-850 pb-3">
         <div>
           <h2 className="text-base font-semibold font-display text-zinc-100 flex items-center gap-2">
-            <Music size={18} className="text-emerald-400" />
-            Studio Instrument Desk
+            <Package size={18} className="text-emerald-400" />
+            Instruments & Asset Inventory
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">Log workstations, electronic keyboards, or analog guitars checked out for study hours.</p>
+          <p className="text-xs text-zinc-400 mt-1">Track all department equipment, lending, and checkout history</p>
+        </div>
+        <div className="flex gap-2">
+          {availableAssets.length > 0 && (
+            <button
+              onClick={() => setShowCheckoutForm(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors cursor-pointer shadow-sm uppercase tracking-wide select-none h-9"
+            >
+              <ArrowRightLeft size={13} />
+              Checkout
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={openAddAsset}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm uppercase tracking-wide select-none h-9"
+            >
+              <Plus size={13} />
+              Add Asset
+            </button>
+          )}
         </div>
       </div>
 
-      {successMsg && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium rounded-lg flex items-center gap-1.5 text-xs">
-          <CheckCircle size={15} />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="p-3 bg-red-500/15 border border-red-500/30 text-red-400 font-medium rounded-lg flex items-center gap-1.5 text-xs">
-          <AlertTriangle size={15} className="flex-shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        {/* Check-Out form */}
-        <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800/85 rounded-xl p-5 h-fit space-y-4 select-none text-xs shadow-md">
-          <h3 className="font-semibold text-zinc-200 border-b border-zinc-800 pb-3 text-xs flex items-center gap-1.5 uppercase font-display tracking-wide">
-            <LogIn size={13} className="text-emerald-400" />
-            Book Checkout Session
-          </h3>
-
-          <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-            <div>
-              <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Select Instrument/Workstation *</label>
-              
-              <div className="flex gap-2 items-center mb-2">
-                <button
-                  type="button"
-                  onClick={() => setUseCustomInstrument(false)}
-                  className={`px-3 py-1 text-[10px] font-medium rounded-md transition-all ${!useCustomInstrument ? 'bg-emerald-600 text-zinc-100 shadow-sm' : 'bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-zinc-200'}`}
-                >
-                  Standard List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUseCustomInstrument(true)}
-                  className={`px-3 py-1 text-[10px] font-medium rounded-md transition-all ${useCustomInstrument ? 'bg-emerald-600 text-zinc-100 shadow-sm' : 'bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-zinc-200'}`}
-                >
-                  Custom Gear
-                </button>
-              </div>
-
-              {useCustomInstrument ? (
-                <input
-                  type="text"
-                  placeholder="e.g. Gibson Les Paul, AKG C414 Condenser"
-                  value={customInstrument}
-                  onChange={(e) => setCustomInstrument(e.target.value)}
-                  required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                />
-              ) : (
-                <select
-                  value={instrument}
-                  onChange={(e) => setInstrument(e.target.value)}
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs cursor-pointer"
-                >
-                  {DEFAULT_INSTRUMENTS.map((inst, idx) => (
-                    <option key={idx} value={inst} className="bg-zinc-900">{inst}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Borrower Name *</label>
-                <input
-                  type="text"
-                  placeholder="Student Fullname"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Student Roll / ID*</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 23-MU-45"
-                  value={rollNumber}
-                  onChange={(e) => setRollNumber(e.target.value)}
-                  required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs font-mono"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Session Work Purpose *</label>
-              <select
-                value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
-                className="w-full p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs cursor-pointer"
-              >
-                <option value="Composition" className="bg-zinc-900">Composition (MIDI / Synthesizers)</option>
-                <option value="Vocal Recording" className="bg-zinc-900">Vocal Recording / Micing</option>
-                <option value="Instrument Practice" className="bg-zinc-900">Instrument Practice (Guitar/Harmonium)</option>
-                <option value="Mixing & Editing" className="bg-zinc-900">Mixing & DAW arrangements</option>
-                <option value="Learning / Tutorial" className="bg-zinc-900">Learning / Tutorials</option>
-                <option value="Custom" className="bg-zinc-900">Custom Task (Write below)</option>
-              </select>
-
-              {purpose === 'Custom' && (
-                <input
-                  type="text"
-                  placeholder="Describe your session work..."
-                  value={customPurpose}
-                  onChange={(e) => setCustomPurpose(e.target.value)}
-                  required
-                  className="w-full mt-2 p-2 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                />
-              )}
-            </div>
-
-            {/* Micro clean checklist */}
-            <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-xl space-y-2">
-              <span className="block font-medium text-[9px] text-zinc-550 tracking-wider uppercase border-b border-zinc-900 pb-1">Stewardship Accountability</span>
-              
-              <label className="flex items-start gap-2 text-zinc-400 cursor-pointer select-none">
-                <input 
-                  type="checkbox" 
-                  checked={deskClean}
-                  onChange={(e) => setDeskClean(e.target.checked)}
-                  className="mt-0.5 rounded text-emerald-500 bg-zinc-900 border-zinc-700 focus:ring-0"
-                />
-                <span className="text-[11px] leading-relaxed">Workstation and keybeds are wiped dust-clean</span>
-              </label>
-
-              <label className="flex items-start gap-2 text-zinc-400 cursor-pointer select-none">
-                <input 
-                  type="checkbox" 
-                  checked={cablesProper}
-                  onChange={(e) => setCablesProper(e.target.checked)}
-                  className="mt-0.5 rounded text-emerald-500 bg-zinc-900 border-zinc-700 focus:ring-0"
-                />
-                <span className="text-[11px] leading-relaxed">Cables are laid flat with no stress tension</span>
-              </label>
-
-              <label className="flex items-start gap-2 text-zinc-400 cursor-pointer select-none">
-                <input 
-                  type="checkbox" 
-                  checked={noFoodDrink}
-                  onChange={(e) => setNoFoodDrink(e.target.checked)}
-                  className="mt-0.5 rounded text-red-500 bg-zinc-900 border-red-900/40 focus:ring-0"
-                />
-                <span className="font-semibold text-[11px] leading-relaxed text-red-400">Strictly no food or drinks near electronic consoles</span>
-              </label>
-            </div>
-
-            <button 
-              type="submit"
-              disabled={submitting}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed transition-all text-zinc-100 font-medium rounded-lg cursor-pointer text-center flex items-center justify-center gap-1.5 uppercase tracking-wider text-xs shadow-sm select-none"
-            >
-              <LogIn size={13} />
-              {submitting ? "Connecting..." : "Confirm & Log Checkout"}
-            </button>
-          </form>
+      {/* Search + Category Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-3 top-2.5 text-zinc-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search assets..."
+            className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
+          />
         </div>
 
-        {/* Real-time active checkouts queue & historic files log */}
-        <div className="lg:col-span-7 space-y-5">
-          
-          {/* Active List */}
-          <div className="bg-zinc-900 p-5 rounded-xl border border-zinc-800/80 space-y-4 flex flex-col justify-between">
-            <h3 className="font-semibold text-zinc-200 border-b border-zinc-800 pb-3 text-xs flex items-center gap-1.5 uppercase font-display tracking-wide">
-              <Clock size={13} className="text-emerald-400" />
-              Active Checkouts ({activeCheckouts.length})
-            </h3>
-
-            {activeCheckouts.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/15 select-none">
-                <Sparkles size={22} className="text-zinc-650 mx-auto mb-2 animate-pulse" />
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">All instruments nested</p>
-                <p className="text-xs text-zinc-500 mt-1">All reference gear is currently safe in standard storage racks.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
-                {activeCheckouts.map((log) => {
-                  const checkInTimeDate = new Date(log.checkInTime);
-                  const timeFormatted = checkInTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  return (
-                    <div key={log.id} className="p-4 bg-zinc-950/55 rounded-xl border border-zinc-800/80 flex flex-col justify-between h-36 hover:border-zinc-700 transition-all shadow-sm">
-                      <div>
-                        <div className="flex justify-between items-start w-full gap-1">
-                          <strong className="text-zinc-100 font-semibold text-xs tracking-wide block truncate select-all">{log.instrumentName}</strong>
-                        </div>
-                        <p className="text-zinc-400 text-[11px] mt-1 select-all">Borrower: <span className="text-zinc-350 font-medium">{log.studentName}</span> <span className="text-zinc-500 font-mono text-[10px]">[{log.rollNumber}]</span></p>
-                        
-                        <div className="flex items-center gap-1.5 mt-2.5 text-[10px] text-zinc-500 border-t border-zinc-900/60 pt-2 select-all">
-                          <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-zinc-400 text-[9px]">
-                            {log.purpose}
-                          </span>
-                          <span>Checked out {timeFormatted}</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleReturnItem(log.id)}
-                        className="w-full mt-2 py-1 bg-emerald-500/10 hover:bg-emerald-600 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 hover:text-white transition-all font-medium text-[10px] rounded-lg cursor-pointer flex items-center justify-center gap-1 shadow-xs"
-                      >
-                        <LogOut size={11} />
-                        Return Instrument
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* History Accordion toggle */}
-          <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 text-xs shadow-md">
+        {categories.length > 0 && (
+          <div className="flex items-center bg-zinc-900 p-0.5 rounded-lg border border-zinc-800 select-none flex-wrap">
             <button
-              onClick={() => setHistoryOpen(!historyOpen)}
-              className="w-full flex justify-between items-center text-zinc-300 font-semibold uppercase tracking-wide cursor-pointer text-xs select-none font-display"
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
+                selectedCategory === 'all' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
             >
-              <span className="flex items-center gap-1.5 text-zinc-250">
-                <History size={13} className="text-zinc-400" />
-                Historic Logbook Register ({historicLogs.length})
-              </span>
-              <span className="text-[10px] text-zinc-400 border border-zinc-800 bg-zinc-950 px-2.5 py-1 rounded-lg transition-all">{historyOpen ? 'HIDE LOGS' : 'VIEW ALL LOGS'}</span>
+              All
             </button>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer capitalize ${
+                  selectedCategory === cat ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-            {historyOpen && (
-              <div className="mt-4 space-y-3 pt-4 border-t border-zinc-800">
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 text-zinc-500" size={13} />
-                  <input
-                    type="text"
-                    placeholder="Search past logs by gear or borrower name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
-                  />
+      {/* Asset Grid */}
+      {loading ? (
+        <div className="text-center py-20 text-zinc-500 animate-pulse uppercase text-xs">Loading inventory...</div>
+      ) : assets.length === 0 ? (
+        <div className="text-center py-20 bg-zinc-950/20 border border-dashed border-zinc-800 rounded-xl space-y-3">
+          <Package size={40} className="text-zinc-700 mx-auto" />
+          <p className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">No Assets Added Yet</p>
+          <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
+            {isAdmin ? 'Click "Add Asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAssets.map(asset => {
+            const statusStyle = STATUS_STYLES[asset.status] || STATUS_STYLES.operational;
+            return (
+              <div key={asset.id} className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 space-y-3 hover:border-zinc-750 transition-all shadow-sm group relative">
+                {/* Admin actions */}
+                {isAdmin && (
+                  <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-zinc-400 hover:text-white cursor-pointer" title="Edit">
+                      <Edit size={11} />
+                    </button>
+                    <button onClick={() => setDeletingAssetId(asset.id)} className="p-1.5 bg-zinc-950 border border-red-900/50 rounded-md text-red-400 hover:text-red-300 cursor-pointer" title="Delete">
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Asset info */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-100 leading-tight">{asset.name}</h4>
+                    {asset.model && <p className="text-[10px] text-zinc-500 mt-0.5">{asset.model}</p>}
+                  </div>
                 </div>
 
-                {filteredHistory.length === 0 ? (
-                  <div className="text-center py-6 text-zinc-550 text-xs uppercase">No match found.</div>
-                ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {filteredHistory.map((log) => {
-                      const checkIn = new Date(log.checkInTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                      const checkOut = log.checkOutTime ? new Date(log.checkOutTime).toLocaleString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                      return (
-                        <div key={log.id} className="p-3 bg-zinc-950/40 border border-zinc-850 rounded-lg text-xs leading-relaxed flex flex-col justify-between">
-                          <div className="flex justify-between items-start gap-1">
-                            <div>
-                              <strong className="text-zinc-200 font-medium block select-all">{log.instrumentName}</strong>
-                              <span className="text-zinc-400">Borrower: <strong className="text-zinc-300">{log.studentName}</strong> <span className="text-zinc-500 font-mono text-[10px]">[{log.rollNumber}]</span></span>
-                            </div>
-                            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium text-[9px] rounded-full">Returned</span>
-                          </div>
-                          
-                          <div className="mt-2 flex flex-wrap justify-between items-center text-[10px] text-zinc-500 border-t border-zinc-900/40 pt-1.5 select-all">
-                            <span>PURPOSE: {log.purpose}</span>
-                            <span className="font-mono text-[9px]">{checkIn} - {checkOut}</span>
-                          </div>
-                          {log.remarks && (
-                            <p className="text-zinc-500 italic select-all mt-1.5 pl-2 border-l border-zinc-800">"{log.remarks}"</p>
-                          )}
-                        </div>
-                      );
-                    })}
+                <div className="flex flex-wrap gap-1.5">
+                  {asset.category && (
+                    <span className="text-[9px] px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full font-medium uppercase tracking-wide flex items-center gap-1">
+                      <Tag size={8} /> {asset.category}
+                    </span>
+                  )}
+                  <span className={`text-[9px] px-2 py-0.5 ${statusStyle.bg} ${statusStyle.text} border rounded-full font-medium uppercase tracking-wide`}>
+                    {statusStyle.label}
+                  </span>
+                </div>
+
+                {asset.location && (
+                  <p className="text-[10px] text-zinc-500 flex items-center gap-1">
+                    <MapPin size={10} /> {asset.location}
+                  </p>
+                )}
+
+                {asset.serialNumber && (
+                  <p className="text-[10px] text-zinc-600 font-mono">SN: {asset.serialNumber}</p>
+                )}
+
+                {/* Lending Status */}
+                {asset.lentTo ? (
+                  <div className="p-2.5 bg-amber-500/5 border border-amber-500/15 rounded-lg">
+                    <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                      <User size={10} /> Lent to: {asset.lentTo}
+                    </p>
+                    {asset.lentAt && (
+                      <p className="text-[9px] text-amber-500/70 mt-0.5">Since: {formatDateTime(asset.lentAt)}</p>
+                    )}
+                  </div>
+                ) : asset.status === 'operational' && (
+                  <p className="text-[10px] text-emerald-500/70 flex items-center gap-1">
+                    <CheckCircle size={10} /> Available
+                  </p>
+                )}
+
+                {asset.remarks && (
+                  <p className="text-[10px] text-zinc-500 italic border-t border-zinc-850 pt-2">{asset.remarks}</p>
+                )}
+
+                {/* Delete confirmation */}
+                {deletingAssetId === asset.id && (
+                  <div className="p-2.5 bg-red-500/5 border border-red-500/20 rounded-lg flex items-center justify-between">
+                    <span className="text-[10px] text-red-400 font-medium">Delete this asset?</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleDeleteAsset(asset.id)} className="px-3 py-1 text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer">Yes</button>
+                      <button onClick={() => setDeletingAssetId(null)} className="px-3 py-1 text-[10px] font-semibold bg-zinc-800 text-zinc-300 rounded cursor-pointer">No</button>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Checkout/Return History */}
+      {sessions.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h3 className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wide font-display">
+              <Clock size={13} className="text-emerald-400" />
+              Checkout History
+            </h3>
+            <div className="flex bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 select-none">
+              {(['active', 'completed', 'all'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setSessionFilter(f)}
+                  className={`px-3 py-1 rounded-md text-[10px] font-medium capitalize transition-all cursor-pointer ${
+                    sessionFilter === f ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
 
-        </div>
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {filteredSessions.length === 0 ? (
+              <p className="text-center py-8 text-zinc-500 text-xs uppercase">No {sessionFilter} sessions</p>
+            ) : (
+              filteredSessions.map(session => (
+                <div key={session.id} className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-850 text-xs space-y-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <span className="font-semibold text-zinc-200">{session.assetName || session.assetId}</span>
+                      <span className="text-zinc-600 mx-1.5">→</span>
+                      <span className="text-zinc-300">{session.studentName}</span>
+                      {session.rollNumber && <span className="text-zinc-600 ml-1">({session.rollNumber})</span>}
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium uppercase border ${
+                      session.status === 'active'
+                        ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    }`}>
+                      {session.status}
+                    </span>
+                  </div>
 
-      </div>
+                  <div className="flex justify-between items-center text-[10px] text-zinc-500">
+                    <span className="capitalize">{session.purpose}</span>
+                    <span>{formatDateTime(session.checkInTime)}</span>
+                  </div>
+
+                  {session.notes && <p className="text-[10px] text-zinc-500 italic">"{session.notes}"</p>}
+
+                  {/* Return button for active sessions */}
+                  {session.status === 'active' && (
+                    returningSessionId === session.id ? (
+                      <div className="pt-2 border-t border-zinc-850 space-y-2">
+                        <input
+                          type="text"
+                          value={returnNotes}
+                          onChange={(e) => setReturnNotes(e.target.value)}
+                          placeholder="Return notes (optional)..."
+                          className="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => setReturningSessionId(null)} className="px-3 py-1.5 text-[10px] font-medium bg-zinc-800 text-zinc-300 rounded cursor-pointer">Cancel</button>
+                          <button onClick={() => handleReturn(session)} className="px-3 py-1.5 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded cursor-pointer flex items-center gap-1">
+                            <RotateCcw size={10} /> Confirm Return
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setReturningSessionId(session.id)}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 font-medium cursor-pointer flex items-center gap-1 pt-1"
+                      >
+                        <RotateCcw size={10} /> Return Item
+                      </button>
+                    )
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Asset Modal */}
+      {showAssetForm && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-md overflow-hidden font-sans shadow-2xl">
+            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-wider font-display text-zinc-200">
+                {editingAssetId ? 'Edit Asset' : 'Add New Asset'}
+              </h3>
+              <button onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }} className="text-zinc-400 hover:text-zinc-200 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssetSubmit} className="p-5 space-y-4 text-xs text-zinc-300">
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Name *</label>
+                <input type="text" value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+                  placeholder="e.g. Yamaha Keyboard" required
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Category *</label>
+                  <input type="text" list="category-suggestions" value={assetForm.category} onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
+                    placeholder="e.g. Instrument" required
+                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                  <datalist id="category-suggestions">
+                    {categories.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Status *</label>
+                  <select value={assetForm.status} onChange={(e) => setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })}
+                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                    <option value="operational">Operational</option>
+                    <option value="needs_repair">Needs Repair</option>
+                    <option value="maintenance">Under Maintenance</option>
+                    <option value="missing">Missing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Model</label>
+                <input type="text" value={assetForm.model} onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
+                  placeholder="e.g. P-125"
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Serial Number</label>
+                  <input type="text" value={assetForm.serialNumber} onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
+                    placeholder="e.g. SN-12345"
+                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Location</label>
+                  <input type="text" value={assetForm.location} onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
+                    placeholder="e.g. Main Studio"
+                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Remarks</label>
+                <textarea value={assetForm.remarks} onChange={(e) => setAssetForm({ ...assetForm, remarks: e.target.value })}
+                  placeholder="Any notes about this item..."
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 h-16 text-xs" />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button type="button" onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }}
+                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer">Cancel</button>
+                <button type="submit"
+                  className="px-4 py-2 text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer">
+                  {editingAssetId ? 'Save Changes' : 'Add Asset'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {showCheckoutForm && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-sm overflow-hidden font-sans shadow-2xl">
+            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center">
+              <h3 className="text-xs font-semibold uppercase tracking-wider font-display text-zinc-200">Checkout Item</h3>
+              <button onClick={() => setShowCheckoutForm(false)} className="text-zinc-400 hover:text-zinc-200 cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCheckout} className="p-5 space-y-4 text-xs text-zinc-300">
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Select Item *</label>
+                <select value={checkoutAssetId} onChange={(e) => setCheckoutAssetId(e.target.value)} required
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                  <option value="">Choose an item...</option>
+                  {availableAssets.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.category})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Your Name *</label>
+                <input type="text" value={checkoutName} onChange={(e) => setCheckoutName(e.target.value)} required
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Roll Number *</label>
+                <input type="text" value={checkoutRoll} onChange={(e) => setCheckoutRoll(e.target.value)} required placeholder="e.g. 20BCSE01"
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Purpose *</label>
+                <select value={checkoutPurpose} onChange={(e) => setCheckoutPurpose(e.target.value)}
+                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                  <option value="composition">Composition</option>
+                  <option value="recording">Recording</option>
+                  <option value="mixing">Mixing & Mastering</option>
+                  <option value="practice">Practice</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button type="button" onClick={() => setShowCheckoutForm(false)}
+                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer">Cancel</button>
+                <button type="submit"
+                  className="px-4 py-2 text-zinc-100 bg-sky-600 hover:bg-sky-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer">Checkout</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

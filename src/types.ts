@@ -1,5 +1,7 @@
+// === Asset Types ===
 export type AssetStatus = 'operational' | 'needs_repair' | 'maintenance' | 'missing';
-export type AssetCategory = 'computer' | 'audio' | 'instrument' | 'cable' | 'accessory';
+// Categories are now dynamic strings — admin can create any category
+export type AssetCategory = string;
 
 export interface Asset {
   id: string;
@@ -11,14 +13,17 @@ export interface Asset {
   status: AssetStatus;
   remarks: string;
   lastChecked: string;
-  assignedTo?: string; // e.g. Computer 1, Common, etc.
+  assignedTo?: string;
+  lentTo?: string;       // Name of person who currently has the item
+  lentAt?: string;       // When it was lent out
 }
 
+// === Session/Checkout Types ===
 export interface SessionLog {
   id: string;
   studentName: string;
   rollNumber: string;
-  assetId: string; // e.g. Computer 1, Guitar
+  assetId: string;
   purpose: 'composition' | 'recording' | 'mixing' | 'practice' | 'other';
   checkInTime: string;
   checkOutTime?: string;
@@ -37,6 +42,7 @@ export interface SessionLog {
   notes?: string;
 }
 
+// === Maintenance Types ===
 export interface MaintenanceTask {
   id: string;
   title: string;
@@ -51,6 +57,7 @@ export interface MaintenanceTask {
   }[];
 }
 
+// === Studio Alert Types ===
 export interface StudioAlert {
   id: string;
   assetId: string;
@@ -59,4 +66,32 @@ export interface StudioAlert {
   reportedBy: string;
   reportedAt: string;
   resolved: boolean;
+}
+
+// === User/Access Types ===
+export type UserRole = 'admin' | 'junior_admin' | 'member';
+
+export interface AllowedUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  addedBy: string;
+  addedAt: string;
+}
+
+// === Music Release Types ===
+export interface MusicRelease {
+  id: string;
+  title: string;
+  year: number;
+  releaseDate: string;
+  coverUrl?: string;
+  spotifyUrl?: string;
+  appleMusicUrl?: string;
+  youtubeMusicUrl?: string;
+  description?: string;
+  credits?: string;
+  addedBy: string;
+  addedAt: string;
 }
