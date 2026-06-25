@@ -109,7 +109,7 @@ export default function App() {
       setIsAdmin(true);
       
       const masterExists = allowedUsers.some(u => u.email === MASTER_ADMIN_EMAIL);
-      if (!masterExists && allowedUsers.length >= 0) {
+      if (!masterExists) {
         setDoc(doc(db, 'allowed_users', MASTER_ADMIN_EMAIL), {
           email: MASTER_ADMIN_EMAIL,
           name: 'Koushik V',
