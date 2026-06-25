@@ -182,7 +182,6 @@ export default function App() {
           
           {/* Logo */}
           <div className="flex items-center gap-2.5 select-none">
-            <span className="text-lg">🎵</span>
             <h1 className="text-[15px] font-semibold tracking-tight text-[#1d1d1f]">
               Sai Tunes
             </h1>
@@ -258,7 +257,6 @@ export default function App() {
           <div className="flex-1 flex items-center justify-center min-h-[60vh]">
             <div className="w-full max-w-sm text-center space-y-8">
               <div className="space-y-3">
-                <div className="text-5xl mb-4">🎵</div>
                 <h2 className="text-[28px] font-bold tracking-tight text-[#1d1d1f] leading-tight">
                   Sai Tunes
                 </h2>
