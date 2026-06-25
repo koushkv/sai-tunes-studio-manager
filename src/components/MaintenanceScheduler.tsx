@@ -119,7 +119,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
       {
         date: completionDate,
         completedBy: completedBy.trim(),
-        remarks: completionRemarks.trim() || 'Passed routine stewardship check'
+        remarks: completionRemarks.trim() || 'Passed routine maintenance check'
       },
       ...(targetTask.history || [])
     ];
@@ -229,7 +229,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
           <p className="text-[12px] text-[#86868b] font-medium">Responsible crew</p>
           <p className="text-[17px] font-semibold text-[#1d1d1f]">HOD & Junior Incharge</p>
-          <p className="text-[12px] text-[#86868b]">Cooperative hostel stewardship</p>
+          <p className="text-[12px] text-[#86868b]">Hostel music department crew</p>
         </div>
       </div>
 

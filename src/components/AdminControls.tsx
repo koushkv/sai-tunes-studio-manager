@@ -41,7 +41,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
         const data = d.data();
         list.push({
           id: d.id,
-          email: data.email ?? d.id,
+          email: (data.email ?? d.id).toLowerCase(),
           name: data.name ?? '',
           role: data.role ?? 'member',
           addedBy: data.addedBy ?? '',

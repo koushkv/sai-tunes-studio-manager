@@ -16,7 +16,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 // Component imports
 import InstrumentLogbook from './components/InstrumentLogbook';
 import MaintenanceScheduler from './components/MaintenanceScheduler';
-import StewardshipProgress from './components/StewardshipProgress';
+import ProjectsTracker from './components/ProjectsTracker';
 import AdminControls from './components/AdminControls';
 import MusicReleases from './components/MusicReleases';
 
@@ -31,13 +31,14 @@ interface CustomUser {
 const MASTER_ADMIN_EMAIL = 'koushikv@sssihl.edu.in';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'instruments' | 'maintenance' | 'progress' | 'releases'>('instruments');
+  const [activeTab, setActiveTab] = useState<'instruments' | 'projects' | 'maintenance' | 'releases'>('instruments');
   
   const [user, setUser] = useState<CustomUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAllowed, setIsAllowed] = useState<boolean | null>(null);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
+  const [allowedUsersLoading, setAllowedUsersLoading] = useState(true);
   
   const [authError, setAuthError] = useState('');
   const [showAdminTab, setShowAdminTab] = useState(false);
@@ -51,7 +52,7 @@ export default function App() {
         const data = doc.data();
         userList.push({
           id: doc.id,
-          email: (data.email || '').toLowerCase(),
+          email: (data.email || doc.id).toLowerCase(),
           name: data.name || '',
           role: data.role || 'member',
           addedBy: data.addedBy || '',
@@ -59,8 +60,10 @@ export default function App() {
         });
       });
       setAllowedUsers(userList);
+      setAllowedUsersLoading(false);
     }, (error) => {
       console.error("Firestore allowed_users read error:", error);
+      setAllowedUsersLoading(false);
     });
 
     return () => unsubscribe();
@@ -89,6 +92,8 @@ export default function App() {
 
   // Check if user is allowed + determine role
   useEffect(() => {
+    if (allowedUsersLoading) return;
+
     if (!user?.email) {
       setIsAllowed(null);
       setUserRole(null);
@@ -126,7 +131,7 @@ export default function App() {
       setUserRole(null);
       setIsAdmin(false);
     }
-  }, [user, allowedUsers]);
+  }, [user, allowedUsers, allowedUsersLoading]);
 
   const handleGoogleLogin = async () => {
     setAuthError('');
@@ -168,8 +173,8 @@ export default function App() {
 
   const tabs = [
     { id: 'instruments', label: 'Inventory' },
+    { id: 'projects', label: 'Projects' },
     { id: 'maintenance', label: 'Maintenance' },
-    { id: 'progress', label: 'Leaderboard' },
     { id: 'releases', label: 'Releases' },
   ];
 
@@ -347,11 +352,11 @@ export default function App() {
                 {activeTab === 'instruments' && (
                   <InstrumentLogbook currentUser={user} isAdmin={isAdmin} />
                 )}
+                {activeTab === 'projects' && (
+                  <ProjectsTracker currentUser={user} isAdmin={isAdmin} />
+                )}
                 {activeTab === 'maintenance' && (
                   <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} />
-                )}
-                {activeTab === 'progress' && (
-                  <StewardshipProgress />
                 )}
                 {activeTab === 'releases' && (
                   <MusicReleases currentUser={user} isAdmin={isAdmin} />

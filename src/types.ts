@@ -95,3 +95,26 @@ export interface MusicRelease {
   addedBy: string;
   addedAt: string;
 }
+
+// === Music Project Types ===
+export type ProjectStage = 'composing' | 'arranging' | 'live_inputs' | 'mixing' | 'mastering' | 'completed';
+
+export interface MusicProject {
+  id: string;
+  name: string;
+  occasion: string;
+  stage: ProjectStage;
+  students: string[]; // List of student names/emails
+  notes?: string;
+  updatedBy: string;
+  updatedAt: string;
+  createdBy: string;
+  createdAt: string;
+  history?: {
+    stage: ProjectStage;
+    updatedBy: string;
+    updatedAt: string;
+    notes?: string;
+  }[];
+}
+
