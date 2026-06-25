@@ -1,22 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Outfit:wght@300;400;500;650;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Outfit", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", monospace;
+
+  /* Apple-inspired color tokens */
+  --color-apple-bg: #f5f5f7;
+  --color-apple-card: #ffffff;
+  --color-apple-text: #1d1d1f;
+  --color-apple-secondary: #6e6e73;
+  --color-apple-tertiary: #86868b;
+  --color-apple-border: #d2d2d7;
+  --color-apple-divider: #e8e8ed;
+  --color-apple-blue: #0071e3;
+  --color-apple-blue-hover: #0077ED;
+  --color-apple-green: #34c759;
+  --color-apple-orange: #ff9f0a;
+  --color-apple-red: #ff3b30;
 }
 
-/* Custom smooth transitions and animations */
+/* Base styles */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--color-apple-bg);
+  color: var(--color-apple-text);
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c6;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a6;
+}
+
+/* Custom animations */
 .animate-spin-slow {
   animation: spin 16s linear infinite;
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Apple-style selection */
+::selection {
+  background: rgba(0, 113, 227, 0.15);
+  color: #1d1d1f;
 }

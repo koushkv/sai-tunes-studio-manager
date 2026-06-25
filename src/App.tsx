@@ -20,25 +20,6 @@ import StewardshipProgress from './components/StewardshipProgress';
 import AdminControls from './components/AdminControls';
 import MusicReleases from './components/MusicReleases';
 
-// Icon imports
-import { 
-  Music, 
-  Calendar, 
-  TrendingUp, 
-  LogOut, 
-  Sparkles, 
-  Shield, 
-  AlertCircle, 
-  Key, 
-  Lock,
-  Mail,
-  User,
-  Activity,
-  Maximize2,
-  Disc3,
-  ShieldX
-} from 'lucide-react';
-
 import { AllowedUser, UserRole } from './types';
 
 interface CustomUser {
@@ -52,11 +33,10 @@ const MASTER_ADMIN_EMAIL = 'koushikv@sssihl.edu.in';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'instruments' | 'maintenance' | 'progress' | 'releases'>('instruments');
   
-  // Real-time Auth User Context
   const [user, setUser] = useState<CustomUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isAllowed, setIsAllowed] = useState<boolean | null>(null); // null = loading
+  const [isAllowed, setIsAllowed] = useState<boolean | null>(null);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   
   const [authError, setAuthError] = useState('');
@@ -118,13 +98,11 @@ export default function App() {
 
     const email = user.email.toLowerCase();
 
-    // Master admin is always allowed
     if (email === MASTER_ADMIN_EMAIL) {
       setIsAllowed(true);
       setUserRole('admin');
       setIsAdmin(true);
       
-      // Ensure master admin exists in allowed_users collection
       const masterExists = allowedUsers.some(u => u.email === MASTER_ADMIN_EMAIL);
       if (!masterExists && allowedUsers.length >= 0) {
         setDoc(doc(db, 'allowed_users', MASTER_ADMIN_EMAIL), {
@@ -138,7 +116,6 @@ export default function App() {
       return;
     }
 
-    // Check against allowed_users list
     const found = allowedUsers.find(u => u.email === email);
     if (found) {
       setIsAllowed(true);
@@ -151,7 +128,6 @@ export default function App() {
     }
   }, [user, allowedUsers]);
 
-  // Google SSO logic
   const handleGoogleLogin = async () => {
     setAuthError('');
     try {
@@ -159,7 +135,7 @@ export default function App() {
     } catch (err: any) {
       console.error("Google Auth popup failed:", err);
       if (err.code === 'auth/popup-blocked') {
-        setAuthError("Auth popup was blocked by browser. Please enable popups and try again.");
+        setAuthError("Popup was blocked by your browser. Please enable popups and try again.");
       } else if (err.code === 'auth/iframe-directory-not-found' || err.code === 'auth/operation-not-supported-in-this-environment') {
         setAuthError("Google Login is restricted inside the sandboxed preview iframe.");
       } else {
@@ -181,96 +157,91 @@ export default function App() {
     setShowAdminTab(false);
   };
 
-  // Role display helpers
-  const getRoleBadge = (role: UserRole | null) => {
+  const getRoleLabel = (role: UserRole | null) => {
     switch (role) {
-      case 'admin': return { label: 'ADMINISTRATOR', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' };
-      case 'junior_admin': return { label: 'JUNIOR ADMIN', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
-      case 'member': return { label: 'MEMBER', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
-      default: return { label: 'GUEST', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' };
+      case 'admin': return 'Admin';
+      case 'junior_admin': return 'Jr. Admin';
+      case 'member': return 'Member';
+      default: return 'Guest';
     }
   };
 
-  const roleBadge = getRoleBadge(userRole);
+  const tabs = [
+    { id: 'instruments', label: 'Inventory' },
+    { id: 'maintenance', label: 'Maintenance' },
+    { id: 'progress', label: 'Leaderboard' },
+    { id: 'releases', label: 'Releases' },
+  ];
 
   return (
-    <div id="master-layout" className="min-h-screen bg-zinc-950 font-sans text-zinc-300 flex flex-col antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+    <div className="min-h-screen bg-[#f5f5f7] font-sans text-[#1d1d1f] flex flex-col antialiased">
       
-      {/* Header Panel */}
-      <header id="primary-header" className="bg-zinc-900 border-b border-zinc-850 sticky top-0 z-40 px-4 py-2 flex-shrink-0 shadow-md">
-        <div id="header-wrapper" className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+      {/* ── Header ── */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-[#d2d2d7]/60 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-6 h-12 flex items-center justify-between">
           
-          <div className="flex items-center space-x-2.5">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-1.5 rounded select-none shadow-[0_0_10px_rgba(16,185,129,0.05)]">
-              <Sparkles className="animate-pulse" size={15} />
-            </div>
-            <div>
-              <h1 className="text-sm font-display font-semibold text-zinc-100 tracking-wider flex items-center gap-2 leading-none uppercase select-none">
-                SAI TUNES <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 font-sans text-emerald-400 px-2 py-0.5 rounded font-medium tracking-wide">STEWARDSHIP OFFICE</span>
-              </h1>
-              <p className="text-[10px] uppercase font-sans text-zinc-500 tracking-wider select-none mt-1 font-medium">Hostel Music Department Log & Routines Hub</p>
-            </div>
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 select-none">
+            <span className="text-lg">🎵</span>
+            <h1 className="text-[15px] font-semibold tracking-tight text-[#1d1d1f]">
+              Sai Tunes
+            </h1>
           </div>
 
-          {/* Render Tab bar and User controls only when authenticated AND allowed */}
+          {/* Nav + User — only when authenticated */}
           {user && isAllowed && (
-            <div className="flex items-center gap-3 flex-wrap justify-center font-sans text-[11px]">
+            <div className="flex items-center gap-1">
               
-              {/* Navigation Menu Tabs */}
-              <nav id="header-nav-tabs" className="flex items-center bg-zinc-950 p-0.5 rounded border border-zinc-800 shrink-0 select-none">
-                {[
-                  { id: 'instruments', label: 'INSTRUMENTS', icon: <Music size={11} /> },
-                  { id: 'maintenance', label: 'MAINTENANCE', icon: <Calendar size={11} /> },
-                  { id: 'progress', label: 'LEADERBOARD', icon: <TrendingUp size={11} /> },
-                  { id: 'releases', label: 'RELEASES', icon: <Disc3 size={11} /> },
-                ].map(tab => (
+              {/* Tab Navigation */}
+              <nav className="flex items-center gap-0.5 mr-4">
+                {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => {
                       setActiveTab(tab.id as any);
                       setShowAdminTab(false);
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded tracking-wide transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all cursor-pointer ${
                       activeTab === tab.id && !showAdminTab
-                        ? 'bg-zinc-900 text-emerald-400 border border-zinc-800/80 shadow-md font-semibold' 
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40'
+                        ? 'bg-[#1d1d1f] text-white'
+                        : 'text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]'
                     }`}
                   >
-                    {tab.icon}
-                    <span>{tab.label}</span>
+                    {tab.label}
                   </button>
                 ))}
               </nav>
 
-              {/* User Avatar panel */}
-              <div className="flex items-center gap-2 border-l border-zinc-800 pl-3 select-none py-1">
-                <div className="text-right leading-tight block">
-                  <span className="block font-semibold text-zinc-200 text-[10px] uppercase truncate max-w-28">{user.displayName}</span>
-                  <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded border ${roleBadge.color}`}>{roleBadge.label}</span>
-                </div>
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt="Profile" referrerPolicy="no-referrer" className="h-6 w-6 rounded-full border border-zinc-800" />
-                ) : (
-                  <div className={`h-6 w-6 rounded-full border border-zinc-800 flex items-center justify-center font-black ${isAdmin ? 'bg-indigo-950 text-indigo-400 border-indigo-850' : 'bg-emerald-950 text-emerald-400 border-emerald-850'}`}>
-                    {user.displayName.charAt(0).toUpperCase()}
-                  </div>
-                )}
+              {/* User controls */}
+              <div className="flex items-center gap-2 pl-3 border-l border-[#d2d2d7]/60">
                 {isAdmin && (
                   <button
                     onClick={() => setShowAdminTab(!showAdminTab)}
-                    className={`p-1 border rounded cursor-pointer transition-all ${showAdminTab ? 'bg-indigo-600 border-indigo-500 text-zinc-100' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white'}`}
-                    title="User Management Panel"
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all cursor-pointer ${
+                      showAdminTab
+                        ? 'bg-[#0071e3] text-white'
+                        : 'text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]'
+                    }`}
                   >
-                    <Shield size={12} />
+                    Settings
                   </button>
                 )}
-                <button
-                  onClick={handleLogout}
-                  className="p-1 px-2.5 border border-zinc-800 hover:border-red-900 bg-zinc-950 hover:bg-red-950/20 text-zinc-450 hover:text-red-400 rounded transition-all cursor-pointer font-medium flex items-center gap-0.5"
-                  title="Logout"
-                >
-                  <LogOut size={11} />
-                </button>
+                
+                <div className="flex items-center gap-2">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="h-7 w-7 rounded-full" />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-[#e8e8ed] flex items-center justify-center text-[12px] font-semibold text-[#6e6e73]">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="text-[12px] text-[#6e6e73] hover:text-[#1d1d1f] font-medium cursor-pointer transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -279,115 +250,111 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Workspace Frame */}
-      <main id="main-content-stage" className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 flex flex-col justify-start">
+      {/* ── Main Content ── */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-8">
         
-        {/* Not logged in — Show sign-in page */}
+        {/* Not logged in */}
         {!user ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-10 max-w-md mx-auto select-none animate-in fade-in duration-300">
-            
-            <div className="w-full bg-zinc-900 border border-zinc-800/80 rounded-xl p-8 shadow-2xl font-sans text-center space-y-6">
-              <div className="space-y-2">
-                <span className="text-[9px] px-2.5 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full font-semibold tracking-wider uppercase inline-block">SSSIHL SECURE CREDENTIALS</span>
-                
-                <h2 className="text-lg font-display font-bold text-zinc-100 tracking-tight leading-snug mt-2">SAI TUNES CO-OPERATIVE</h2>
-                <p className="text-[11px] text-zinc-400 font-medium uppercase tracking-wide">Hostel Music Department Sign-In</p>
+          <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+            <div className="w-full max-w-sm text-center space-y-8">
+              <div className="space-y-3">
+                <div className="text-5xl mb-4">🎵</div>
+                <h2 className="text-[28px] font-bold tracking-tight text-[#1d1d1f] leading-tight">
+                  Sai Tunes
+                </h2>
+                <p className="text-[15px] text-[#6e6e73] leading-relaxed">
+                  Studio Manager for the Hostel Music Department
+                </p>
               </div>
 
               {authError && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg leading-normal flex items-start gap-2 text-left">
-                  <AlertCircle size={15} className="flex-shrink-0 mt-0.5 text-red-400" />
-                  <p>{authError}</p>
+                <div className="p-4 bg-[#ff3b30]/8 border border-[#ff3b30]/15 text-[#ff3b30] text-[13px] rounded-xl leading-relaxed text-left">
+                  {authError}
                 </div>
               )}
 
-              {/* Standard Google login button */}
               <button
                 onClick={handleGoogleLogin}
-                className="w-full py-2.5 bg-zinc-100 text-zinc-950 hover:bg-white transition-all font-semibold text-[12px] rounded-lg border border-zinc-300 cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wide shadow-sm active:scale-98"
+                className="w-full py-3 bg-[#1d1d1f] hover:bg-[#333336] text-white transition-all font-semibold text-[15px] rounded-xl cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98]"
               >
-                <Key size={14} className="text-zinc-900" />
-                Sign In with Google Account
+                <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0">
+                  <path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                  <path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" opacity=".7"/>
+                  <path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" opacity=".5"/>
+                  <path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" opacity=".8"/>
+                </svg>
+                Sign in with Google
               </button>
 
-              <p className="text-[10px] text-zinc-500 leading-relaxed">
-                Only authorized members can access this system. Contact the admin if you need access.
+              <p className="text-[13px] text-[#86868b]">
+                Only authorized members can access this system.
               </p>
             </div>
-
           </div>
 
         ) : isAllowed === null ? (
-          /* Loading — checking authorization */
-          <div className="flex-1 flex items-center justify-center py-20">
-            <div className="text-center space-y-3 select-none">
-              <div className="h-8 w-8 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Verifying access permissions...</p>
+          /* Checking authorization */
+          <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+            <div className="text-center space-y-4">
+              <div className="h-8 w-8 border-[2.5px] border-[#d2d2d7] border-t-[#0071e3] rounded-full animate-spin mx-auto"></div>
+              <p className="text-[14px] text-[#86868b] font-medium">Verifying access…</p>
             </div>
           </div>
 
         ) : !isAllowed ? (
           /* Access Denied */
-          <div className="flex-1 flex flex-col items-center justify-center py-10 max-w-md mx-auto select-none animate-in fade-in duration-300">
-            <div className="w-full bg-zinc-900 border border-red-900/30 rounded-xl p-8 shadow-2xl font-sans text-center space-y-5">
-              <div className="mx-auto h-14 w-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <ShieldX size={28} className="text-red-400" />
-              </div>
-              
+          <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+            <div className="w-full max-w-sm text-center space-y-6">
+              <div className="text-5xl">🔒</div>
               <div className="space-y-2">
-                <h2 className="text-base font-display font-bold text-zinc-100 tracking-tight">ACCESS DENIED</h2>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Your account <span className="text-zinc-200 font-semibold">{user.email}</span> is not authorized to access this system.
+                <h2 className="text-[22px] font-bold text-[#1d1d1f]">Access Denied</h2>
+                <p className="text-[14px] text-[#6e6e73] leading-relaxed">
+                  <span className="font-medium text-[#1d1d1f]">{user.email}</span> is not authorized to access this system.
                 </p>
               </div>
 
-              <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-lg">
-                <p className="text-[11px] text-amber-400 leading-relaxed">
-                  Please contact the administrator at <span className="font-semibold">koushikv@sssihl.edu.in</span> to request access.
+              <div className="p-4 bg-[#ff9f0a]/8 border border-[#ff9f0a]/15 rounded-xl">
+                <p className="text-[13px] text-[#86868b] leading-relaxed">
+                  Contact the administrator at <span className="font-semibold text-[#1d1d1f]">koushikv@sssihl.edu.in</span> to request access.
                 </p>
               </div>
 
               <button
                 onClick={handleLogout}
-                className="w-full py-2 bg-zinc-800 hover:bg-zinc-750 transition-all border border-zinc-700 text-zinc-300 hover:text-white font-semibold rounded-lg uppercase cursor-pointer tracking-wide text-xs flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-xl font-medium text-[14px] cursor-pointer transition-colors"
               >
-                <LogOut size={13} />
                 Sign Out & Try Another Account
               </button>
             </div>
           </div>
 
         ) : (
-          /* Authorized — show app content */
+          /* ── Authorized Content ── */
           <>
-            {/* If Admin tab is specifically toggled */}
             {showAdminTab ? (
-              <div className="space-y-4 animate-in fade-in duration-150">
-                <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-6 text-xs max-w-2xl mx-auto shadow-xl">
-                  <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mb-4 select-none">
-                    <span className="font-semibold text-zinc-300 uppercase tracking-wide flex items-center gap-1.5 font-display text-xs">
-                      <Lock size={13} className="text-zinc-400" /> System Control Center
-                    </span>
-                    <button onClick={() => setShowAdminTab(false)} className="text-zinc-400 hover:text-zinc-200 px-2.5 py-1 text-[10px] font-semibold border border-zinc-800 bg-zinc-950 rounded-md transition-all cursor-pointer">Close Panel</button>
-                  </div>
-                  <AdminControls currentUserEmail={user.email} />
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-[22px] font-bold text-[#1d1d1f]">Settings</h2>
+                  <button
+                    onClick={() => setShowAdminTab(false)}
+                    className="text-[13px] text-[#0071e3] hover:text-[#0077ED] font-medium cursor-pointer transition-colors"
+                  >
+                    Done
+                  </button>
                 </div>
+                <AdminControls currentUserEmail={user.email} />
               </div>
             ) : (
-              // Standard active tab content
-              <div className="flex-1 animate-in fade-in duration-150">
+              <div className="space-y-6">
                 {activeTab === 'instruments' && (
                   <InstrumentLogbook currentUser={user} isAdmin={isAdmin} />
                 )}
-
                 {activeTab === 'maintenance' && (
                   <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} />
                 )}
-
                 {activeTab === 'progress' && (
                   <StewardshipProgress />
                 )}
-
                 {activeTab === 'releases' && (
                   <MusicReleases currentUser={user} isAdmin={isAdmin} />
                 )}
@@ -398,21 +365,11 @@ export default function App() {
 
       </main>
 
-      {/* Footer Block */}
-      <footer id="primary-footer" className="bg-zinc-900/60 text-zinc-500 py-4 px-4 flex-shrink-0 border-t border-zinc-850/60 text-xs font-sans select-none">
-        <div id="footer-wrapper" className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
-          <div className="space-y-1 text-center md:text-left">
-            <p className="font-semibold text-zinc-300 tracking-wide text-[11px] uppercase font-display">Sai Tunes Hostel Studio Stewardship Hub</p>
-            <p className="text-[10px] text-zinc-500 max-w-2xl leading-relaxed">Unified student-led accountability with real-time Firestore database synchronization and secure campus login.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] bg-zinc-950 border border-zinc-800 px-2.5 py-1 text-zinc-400 rounded-full font-medium">v3.0</span>
-            <span className="text-[9px] bg-emerald-500/5 border border-emerald-500/10 px-2.5 py-1 text-emerald-400 rounded-full font-medium flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Cloud Connected
-            </span>
-          </div>
-        </div>
+      {/* ── Footer ── */}
+      <footer className="py-6 px-6 text-center select-none">
+        <p className="text-[12px] text-[#86868b]">
+          Sai Tunes · Hostel Music Department · SSSIHL
+        </p>
       </footer>
     </div>
   );

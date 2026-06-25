@@ -5,10 +5,10 @@ import type { AllowedUser, UserRole } from '../types';
 
 const MASTER_EMAIL = 'koushikv@sssihl.edu.in';
 
-const ROLE_CONFIG: Record<UserRole, { label: string; bg: string; border: string; text: string }> = {
-  admin:        { label: 'ADMIN',        bg: 'bg-indigo-500/10', border: 'border-indigo-500/25', text: 'text-indigo-400' },
-  junior_admin: { label: 'JR ADMIN',     bg: 'bg-amber-500/10',  border: 'border-amber-500/25',  text: 'text-amber-400' },
-  member:       { label: 'MEMBER',       bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+const ROLE_CONFIG: Record<UserRole, { label: string; bg: string; text: string }> = {
+  admin:        { label: 'Admin',        bg: 'bg-[#0071e3]/10', text: 'text-[#0071e3]' },
+  junior_admin: { label: 'Junior admin', bg: 'bg-[#ff9f0a]/10', text: 'text-[#ff9f0a]' },
+  member:       { label: 'Member',       bg: 'bg-[#34c759]/10', text: 'text-[#34c759]' },
 };
 
 interface AdminControlsProps {
@@ -130,127 +130,113 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 space-y-5 font-sans text-sm max-w-2xl mx-auto">
+    <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-6 font-sans max-w-2xl mx-auto">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-zinc-800/60 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/25 rounded-lg">
-            <Shield size={15} className="text-indigo-400" />
-          </div>
-          <div>
-            <h3 className="font-display font-semibold text-zinc-100 text-xs uppercase tracking-wider">
-              USER ACCESS MANAGEMENT
-            </h3>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">
-              MANAGE AUTHORIZED ACCOUNTS & ROLE PERMISSIONS
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-[22px] font-bold text-[#1d1d1f]">
+            User management
+          </h3>
+          <p className="text-[13px] text-[#86868b] mt-0.5">
+            Manage authorized accounts and role permissions
+          </p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800/60 border border-zinc-700/40 rounded-lg">
-          <Users size={12} className="text-zinc-400" />
-          <span className="text-[11px] font-mono text-zinc-300 font-medium">{users.length}</span>
-          <span className="text-[10px] text-zinc-500 uppercase tracking-wide">USERS</span>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#f5f5f7] rounded-full">
+          <span className="text-[13px] font-medium text-[#1d1d1f]">{users.length}</span>
+          <span className="text-[12px] text-[#86868b]">users</span>
         </div>
       </div>
 
       {/* ── Flash Messages ── */}
       {successMsg && (
-        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] rounded-lg flex items-center gap-2">
-          <CheckCircle size={13} />
+        <div className="p-3 bg-[#34c759]/10 text-[#34c759] text-[13px] rounded-xl flex items-center gap-2">
+          <CheckCircle size={14} />
           <span className="font-medium">{successMsg}</span>
         </div>
       )}
       {errorMsg && (
-        <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] rounded-lg flex items-center gap-2">
-          <AlertTriangle size={13} />
+        <div className="p-3 bg-[#ff3b30]/10 text-[#ff3b30] text-[13px] rounded-xl flex items-center gap-2">
+          <AlertTriangle size={14} />
           <span className="font-medium">{errorMsg}</span>
         </div>
       )}
 
       {/* ── Add User Form ── */}
-      <form onSubmit={handleAddUser} className="space-y-3 bg-zinc-950/50 border border-zinc-800/60 rounded-lg p-4">
-        <div className="flex items-center gap-1.5 mb-1">
-          <UserPlus size={12} className="text-emerald-400" />
-          <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">ADD NEW USER</span>
-        </div>
+      <form onSubmit={handleAddUser} className="space-y-4 bg-[#f5f5f7] rounded-2xl p-5">
+        <span className="text-[17px] font-semibold text-[#1d1d1f]">Add new user</span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Email */}
-          <div className="relative">
-            <label className="block text-[9px] text-zinc-500 uppercase tracking-wider font-medium mb-1">EMAIL</label>
-            <div className="relative">
-              <Mail className="absolute left-2.5 top-2 text-zinc-600" size={12} />
-              <input
-                type="email"
-                placeholder="user@sssihl.edu.in"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                required
-                className="w-full pl-8 pr-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-600 focus:outline-none text-zinc-200 text-xs placeholder:text-zinc-700"
-              />
-            </div>
+          <div>
+            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Email</label>
+            <input
+              type="email"
+              placeholder="user@sssihl.edu.in"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              required
+              className="w-full bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
+            />
           </div>
 
           {/* Name */}
           <div>
-            <label className="block text-[9px] text-zinc-500 uppercase tracking-wider font-medium mb-1">NAME</label>
+            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Name</label>
             <input
               type="text"
-              placeholder="Full Name"
+              placeholder="Full name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               required
-              className="w-full px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-600 focus:outline-none text-zinc-200 text-xs placeholder:text-zinc-700"
+              className="w-full bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
             />
           </div>
         </div>
 
-        <div className="flex items-end gap-2.5">
+        <div className="flex items-end gap-3">
           {/* Role Dropdown */}
           <div className="flex-1">
-            <label className="block text-[9px] text-zinc-500 uppercase tracking-wider font-medium mb-1">ROLE</label>
+            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Role</label>
             <div className="relative">
               <select
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value as UserRole)}
-                className="w-full appearance-none px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg focus:border-zinc-600 focus:outline-none text-zinc-200 text-xs cursor-pointer pr-8"
+                className="w-full appearance-none bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 pr-8 text-[14px] text-[#1d1d1f] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
               >
-                <option value="admin">ADMIN</option>
-                <option value="junior_admin">JUNIOR ADMIN</option>
-                <option value="member">MEMBER</option>
+                <option value="admin">Admin</option>
+                <option value="junior_admin">Junior admin</option>
+                <option value="member">Member</option>
               </select>
-              <ChevronDown size={12} className="absolute right-2.5 top-2.5 text-zinc-600 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-2.5 top-3 text-[#86868b] pointer-events-none" />
             </div>
           </div>
 
           {/* Submit */}
           <button
             type="submit"
-            className="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 rounded-lg font-semibold uppercase text-[10px] tracking-wider cursor-pointer flex items-center gap-1.5 transition-all whitespace-nowrap"
+            className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2.5 text-[14px] font-medium cursor-pointer transition-colors whitespace-nowrap"
           >
-            <UserPlus size={12} />
-            ADD USER
+            Add user
           </button>
         </div>
       </form>
 
       {/* ── User List ── */}
-      <div className="space-y-2">
-        <span className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
-          <Users size={12} />
-          USER REGISTRY ({users.length})
+      <div className="space-y-3">
+        <span className="text-[17px] font-semibold text-[#1d1d1f]">
+          All users
         </span>
 
         {loading ? (
-          <p className="text-zinc-600 animate-pulse py-6 text-center text-xs uppercase tracking-wider">
-            SYNCING USER DATABASE...
+          <p className="text-[#86868b] animate-pulse py-8 text-center text-[14px]">
+            Loading users…
           </p>
         ) : users.length === 0 ? (
-          <p className="text-zinc-600 py-6 text-center text-xs uppercase tracking-wider">
-            NO USERS REGISTERED
+          <p className="text-[#86868b] py-8 text-center text-[14px]">
+            No users registered yet
           </p>
         ) : (
-          <div className="bg-zinc-950/40 rounded-lg border border-zinc-800 max-h-80 overflow-y-auto divide-y divide-zinc-800/50">
+          <div className="rounded-2xl border border-[#e8e8ed] max-h-80 overflow-y-auto divide-y divide-[#e8e8ed]">
             {users.map((user) => {
               const isMaster = user.email === MASTER_EMAIL;
               const roleStyle = ROLE_CONFIG[user.role];
@@ -260,40 +246,37 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
               return (
                 <div
                   key={user.email}
-                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 group hover:bg-zinc-900/50 transition-colors"
+                  className="flex items-center justify-between gap-3 px-4 py-3 group hover:bg-[#f5f5f7] transition-colors"
                 >
                   {/* Left: user info */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Avatar circle */}
-                    <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold uppercase ${
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold ${
                       isMaster
-                        ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
-                        : 'bg-zinc-800 text-zinc-400 border border-zinc-700/50'
+                        ? 'bg-[#0071e3]/10 text-[#0071e3]'
+                        : 'bg-[#f5f5f7] text-[#6e6e73]'
                     }`}>
-                      {isMaster ? <Crown size={13} /> : user.name.charAt(0)}
+                      {user.name.charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-zinc-200 truncate">{user.name}</span>
+                        <span className="text-[14px] font-medium text-[#1d1d1f] truncate">{user.name}</span>
                         {/* Role badge */}
                         {isMaster ? (
-                          <span className="shrink-0 text-[8px] px-1.5 py-0.5 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-bold rounded uppercase tracking-wider">
-                            MASTER
+                          <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
+                            Owner
                           </span>
                         ) : (
-                          <span className={`shrink-0 text-[8px] px-1.5 py-0.5 ${roleStyle.bg} border ${roleStyle.border} ${roleStyle.text} font-semibold rounded uppercase tracking-wider`}>
+                          <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium ${roleStyle.bg} ${roleStyle.text}`}>
                             {roleStyle.label}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Mail size={9} className="text-zinc-600 shrink-0" />
-                        <span className="text-[10px] text-zinc-500 truncate select-all">{user.email}</span>
-                      </div>
+                      <span className="text-[12px] text-[#86868b] truncate block mt-0.5">{user.email}</span>
                       {user.addedBy && (
-                        <span className="text-[9px] text-zinc-600 mt-0.5 block truncate">
-                          ADDED BY {user.addedBy.toUpperCase()}
+                        <span className="text-[11px] text-[#86868b] mt-0.5 block truncate">
+                          Added by {user.addedBy}
                         </span>
                       )}
                     </div>
@@ -301,67 +284,63 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
 
                   {/* Right: actions */}
                   {!isMaster && (
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {/* ── Inline Role Editor ── */}
                       {isEditing ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <select
                             value={editRole}
                             onChange={(e) => setEditRole(e.target.value as UserRole)}
-                            className="appearance-none px-2 py-1 bg-zinc-950 border border-zinc-700 rounded text-[10px] text-zinc-200 cursor-pointer focus:outline-none focus:border-zinc-500"
+                            className="appearance-none bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-2.5 py-1.5 text-[13px] text-[#1d1d1f] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                           >
-                            <option value="admin">ADMIN</option>
-                            <option value="junior_admin">JR ADMIN</option>
-                            <option value="member">MEMBER</option>
+                            <option value="admin">Admin</option>
+                            <option value="junior_admin">Junior admin</option>
+                            <option value="member">Member</option>
                           </select>
                           <button
                             onClick={() => handleUpdateRole(user.email, editRole)}
-                            className="p-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 border border-emerald-500/30 rounded transition-all cursor-pointer"
-                            title="Save Role"
+                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors"
                           >
-                            <CheckCircle size={12} />
+                            Save
                           </button>
                           <button
                             onClick={() => setEditingEmail(null)}
-                            className="p-1 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700/50 rounded transition-all cursor-pointer"
-                            title="Cancel"
+                            className="text-[#86868b] hover:text-[#6e6e73] text-[13px] font-medium cursor-pointer transition-colors"
                           >
-                            <X size={12} />
+                            Cancel
                           </button>
                         </div>
                       ) : isConfirmingDelete ? (
                         /* ── Delete Confirmation ── */
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] text-red-400 uppercase tracking-wider font-semibold">CONFIRM?</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] text-[#ff3b30] font-medium">Remove?</span>
                           <button
                             onClick={() => handleDeleteUser(user.email)}
-                            className="px-2 py-1 bg-red-600/20 text-red-400 hover:bg-red-600/40 border border-red-500/30 rounded text-[9px] font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                            className="bg-[#ff3b30] hover:bg-[#ff453a] text-white rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
                           >
-                            YES
+                            Yes
                           </button>
                           <button
                             onClick={() => setConfirmDeleteEmail(null)}
-                            className="px-2 py-1 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700/50 rounded text-[9px] font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                            className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
                           >
-                            NO
+                            No
                           </button>
                         </div>
                       ) : (
-                        /* ── Default Actions ── */
+                        /* ── Default Actions (visible on hover) ── */
                         <>
                           <button
                             onClick={() => { setEditingEmail(user.email); setEditRole(user.role); }}
-                            className="p-1.5 bg-zinc-800/60 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 border border-zinc-700/40 rounded-md transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                            title="Edit Role"
+                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
                           >
-                            <Edit size={12} />
+                            Edit
                           </button>
                           <button
                             onClick={() => setConfirmDeleteEmail(user.email)}
-                            className="p-1.5 bg-zinc-800/60 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 border border-zinc-700/40 rounded-md transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                            title="Remove User"
+                            className="text-[#ff3b30] hover:text-[#ff453a] text-[13px] font-medium cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
                           >
-                            <Trash2 size={12} />
+                            Remove
                           </button>
                         </>
                       )}

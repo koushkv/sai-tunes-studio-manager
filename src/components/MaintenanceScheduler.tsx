@@ -190,149 +190,141 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
   }).length;
 
   return (
-    <div id="maintenance-panel" className="space-y-6 font-sans text-sm text-zinc-300">
+    <div id="maintenance-panel" className="space-y-6 font-sans text-[14px] text-[#1d1d1f]">
       
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-850 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-base font-semibold font-display text-zinc-100 flex items-center gap-2">
-            <Calendar size={18} className="text-emerald-400" />
-            Maintenance Planner & Routines
+          <h2 className="text-[22px] font-bold text-[#1d1d1f]">
+            Maintenance
           </h2>
-          <p className="text-xs text-zinc-400 mt-1">Scheduled checks to prolong the life of expensive recording monitors, computer modules, and instruments.</p>
+          <p className="text-[13px] text-[#86868b] mt-1">Scheduled checks to prolong the life of recording monitors, computer modules, and instruments.</p>
         </div>
         {isAdmin && (
           <button 
             type="button"
             onClick={() => setShowAddNewChore(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm ml-auto sm:ml-0 uppercase tracking-wide select-none h-9"
+            className="flex items-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
           >
-            <Plus size={13} />
-            Create Routine Task
+            <Plus size={15} />
+            Create task
           </button>
         )}
       </div>
 
-      {/* Mini metric badges */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-1.5 select-none shadow-sm">
-          <h4 className="text-[10px] font-semibold uppercase text-zinc-450 tracking-wider flex items-center gap-1.5">
-            <ListTodo size={13} className="text-emerald-400" /> Configured Tasks
-          </h4>
-          <p className="text-base font-bold text-zinc-100 font-display">{totalRoutines} {selectedFreq} Routines Active</p>
-          <span className="text-[11px] text-zinc-500">Active schedule allocation</span>
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
+          <p className="text-[12px] text-[#86868b] font-medium">Configured tasks</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">{totalRoutines} {selectedFreq} routines</p>
+          <p className="text-[12px] text-[#86868b]">Active schedule allocation</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-1.5 select-none shadow-sm">
-          <h4 className="text-[10px] font-semibold uppercase text-zinc-450 tracking-wider flex items-center gap-1.5">
-            <TrendingUp size={13} className="text-emerald-400 animate-pulse" /> Compliance Status
-          </h4>
-          <p className="text-base font-bold text-zinc-100 font-display">{completedRecently} Checks Done Recently</p>
-          <span className="text-[11px] text-zinc-500">Audited in the past 48 hours</span>
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
+          <p className="text-[12px] text-[#86868b] font-medium">Compliance status</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">{completedRecently} checks done recently</p>
+          <p className="text-[12px] text-[#86868b]">Audited in the past 48 hours</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl space-y-1.5 select-none shadow-sm">
-          <h4 className="text-[10px] font-semibold uppercase text-zinc-450 tracking-wider flex items-center gap-1.5">
-            <AlertCircle size={13} className="text-emerald-400" /> Responsible Crew
-          </h4>
-          <p className="text-base font-bold text-zinc-100 font-display">HOD & Junior Incharge</p>
-          <span className="text-[11px] text-zinc-500">Cooperative hostel stewardship</span>
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
+          <p className="text-[12px] text-[#86868b] font-medium">Responsible crew</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">HOD & Junior Incharge</p>
+          <p className="text-[12px] text-[#86868b]">Cooperative hostel stewardship</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-zinc-550 animate-pulse uppercase text-xs">Syncing routine checklist matrices...</div>
+        <div className="text-center py-20 text-[#86868b] text-[14px]">Syncing routine checklist…</div>
       ) : (
         <>
-          {/* Freq and Crew toggles */}
-          <div className="bg-zinc-900 p-3 rounded-xl border border-zinc-800/80 flex flex-col sm:flex-row justify-between items-center gap-3 select-none">
-            <div className="flex bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 w-full sm:w-auto">
+          {/* Frequency and Role filters */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex gap-2 w-full sm:w-auto">
               {(['daily', 'weekly', 'monthly'] as const).map(freq => (
                 <button
                   key={freq}
                   type="button"
                   onClick={() => setSelectedFreq(freq)}
-                  className={`px-4 py-1.5 rounded-md text-xs font-medium capitalize transition-all cursor-pointer ${
+                  className={`px-4 py-2 rounded-full text-[13px] font-medium capitalize transition-colors cursor-pointer ${
                     selectedFreq === freq 
-                      ? 'bg-zinc-900 text-emerald-400 border border-zinc-805 shadow-sm font-semibold' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/30'
+                      ? 'bg-[#1d1d1f] text-white' 
+                      : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
                   }`}
                 >
-                  {freq} Chores
+                  {freq}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-2 text-xs w-full sm:w-auto justify-end">
-              <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Responsible:</span>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <span className="text-[13px] text-[#86868b] font-medium">Role:</span>
               <select 
                 value={selectedRole} 
                 onChange={(e) => setSelectedRole(e.target.value as any)}
-                className="p-1.5 px-3 bg-zinc-950 border border-zinc-800 rounded-lg focus:outline-none text-zinc-300 font-medium cursor-pointer text-xs"
+                className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
               >
-                <option value="all" className="bg-zinc-900">Everyone's Chores</option>
-                <option value="head" className="bg-zinc-900">Head of Dept (Venkatesh)</option>
-                <option value="junior" className="bg-zinc-900">Junior Incharge (Karthik)</option>
+                <option value="all">Everyone's chores</option>
+                <option value="head">Head of Dept (Venkatesh)</option>
+                <option value="junior">Junior Incharge (Karthik)</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             
-            {/* Left Side: Chores lists */}
+            {/* Left Side: Task cards */}
             <div className="lg:col-span-7 space-y-3">
               {filteredTasks.length === 0 ? (
-                <div className="text-center py-16 bg-zinc-950/20 border border-dashed border-zinc-800 rounded-xl space-y-2">
-                  <CheckCircle size={32} className="text-zinc-700 mx-auto animate-pulse" />
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">No pending chores registered</p>
-                  <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto leading-relaxed">All routines matching this filter configuration are registered as complete or aren't scheduled.</p>
+                <div className="text-center py-16">
+                  <p className="text-[14px] text-[#86868b]">No tasks match this filter.</p>
+                  <p className="text-[13px] text-[#86868b] mt-1">All routines are complete or not scheduled.</p>
                 </div>
               ) : (
                 filteredTasks.map(task => {
-                  const lastDoneText = task.lastDone && task.lastDone !== 'Never Checked' ? `Checked: ${task.lastDone}` : "Never Checked";
+                  const lastDoneText = task.lastDone && task.lastDone !== 'Never Checked' ? `Checked: ${task.lastDone}` : "Never checked";
                   return (
                     <div 
                       key={task.id} 
-                      className="bg-zinc-900 rounded-xl border border-zinc-800/80 p-5 space-y-3 hover:border-zinc-750 transition-all shadow-sm"
+                      className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-3"
                     >
                       <div className="flex justify-between items-start gap-2 w-full">
                         <div>
-                          <span className="font-mono text-[9px] font-semibold px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 uppercase tracking-wide text-zinc-500 select-all">{task.id}</span>
-                          <h3 className="font-semibold text-zinc-100 text-sm tracking-wide mt-2 select-all leading-tight">{task.title}</h3>
+                          <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#86868b]/10 text-[#86868b]">{task.id}</span>
+                          <h3 className="font-semibold text-[#1d1d1f] text-[15px] mt-2 leading-tight">{task.title}</h3>
                         </div>
-                        <span className={`px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-wider rounded-full border whitespace-nowrap select-none ${
+                        <span className={`px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap ${
                           task.role === 'head' 
-                            ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' 
+                            ? 'bg-[#0071e3]/10 text-[#0071e3]' 
                             : task.role === 'junior' 
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' 
+                              : 'bg-[#34c759]/10 text-[#34c759]'
                         }`}>
                           {task.role === 'head' ? 'HOD Venkatesh' : task.role === 'junior' ? 'Junior Incharge' : 'Joint Duty'}
                         </span>
                       </div>
 
-                      <p className="text-xs text-zinc-400 leading-relaxed select-all">{task.description}</p>
+                      <p className="text-[13px] text-[#6e6e73] leading-relaxed">{task.description}</p>
 
-                      <div className="pt-3 border-t border-zinc-850/60 flex flex-col sm:flex-row justify-between items-stretch sm:items-center text-xs gap-3 select-none">
-                        <span className="text-zinc-500 italic flex items-center gap-1.5 select-all font-medium">
-                          <Clock size={12} className="text-zinc-600" /> {lastDoneText}
+                      <div className="pt-3 border-t border-[#e8e8ed] flex flex-col sm:flex-row justify-between items-stretch sm:items-center text-[13px] gap-3">
+                        <span className="text-[#86868b] flex items-center gap-1.5 font-medium">
+                          <Clock size={14} className="text-[#86868b]" /> {lastDoneText}
                         </span>
                         
                         <div className="flex gap-2 justify-end">
                           <button
                             type="button"
                             onClick={() => setCompletingTaskId(task.id)}
-                            className="bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-zinc-250 py-1.5 px-3.5 rounded-lg font-medium text-[10px] uppercase cursor-pointer tracking-wider"
+                            className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
                           >
-                            Custom Log
+                            Custom log
                           </button>
                           <button
                             type="button"
                             onClick={() => handleFastLogCompletion(task.id)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-zinc-100 py-1.5 px-3.5 rounded-lg font-medium text-[10px] uppercase cursor-pointer tracking-wider flex items-center gap-1 shadow-xs"
+                            className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors flex items-center gap-1.5"
                           >
-                            <CheckCircle size={10} />
-                            Fast Complete
+                            <CheckCircle size={14} />
+                            Quick complete
                           </button>
                         </div>
                       </div>
@@ -342,31 +334,30 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
               )}
             </div>
 
-            {/* Right Side: Log completes history scroll */}
-            <div className="lg:col-span-5 bg-zinc-900 p-5 rounded-xl border border-zinc-800/80 h-fit space-y-4 select-all">
-              <h3 className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5 border-b border-zinc-800 pb-3 uppercase tracking-wide font-display select-none">
-                <History size={13} className="text-emerald-400" />
-                Routine Completed Logs
+            {/* Right Side: History log */}
+            <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-[#e8e8ed] h-fit space-y-4">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f] border-b border-[#e8e8ed] pb-3">
+                Completion logs
               </h3>
 
               <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
                 {tasks.flatMap(t => (t.history || []).map(h => ({ ...h, taskTitle: t.title, taskId: t.id }))).length === 0 ? (
-                  <div className="text-center py-20 text-zinc-500 italic text-xs uppercase select-none font-sans">
+                  <div className="text-center py-20 text-[#86868b] text-[13px]">
                     No completion logs recorded yet.
                   </div>
                 ) : (
                   tasks.flatMap(t => (t.history || []).map(h => ({ ...h, taskTitle: t.title, taskId: t.id })))
                     .sort((a,b) => b.date.localeCompare(a.date))
                     .map((log, idx) => (
-                      <div key={idx} className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-850 text-xs space-y-1 block leading-normal select-text shadow-sm font-sans">
+                      <div key={idx} className="p-3 bg-[#f5f5f7] rounded-xl text-[13px] space-y-1.5">
                         <div className="flex justify-between items-start gap-2">
-                          <strong className="text-zinc-200 text-xs leading-snug block font-medium w-4/5 truncate">{log.taskTitle}</strong>
-                          <span className="text-[9px] font-mono bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 text-zinc-500 rounded whitespace-nowrap">{log.taskId}</span>
+                          <strong className="text-[#1d1d1f] text-[13px] font-semibold leading-snug block w-4/5 truncate">{log.taskTitle}</strong>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white border border-[#e8e8ed] text-[#86868b] whitespace-nowrap">{log.taskId}</span>
                         </div>
-                        <p className="text-zinc-400 italic text-[11px] mt-1 pl-2 border-l border-zinc-800">"{log.remarks}"</p>
-                        <div className="flex justify-between items-center text-[10px] text-zinc-500 pt-2 border-t border-zinc-850/60 uppercase select-none">
-                          <span className="flex items-center gap-1 text-zinc-400 font-medium">
-                            <User size={10} /> {log.completedBy.split(' ')[0]}
+                        <p className="text-[#6e6e73] text-[12px] mt-1 pl-2 border-l-2 border-[#d2d2d7]">"{log.remarks}"</p>
+                        <div className="flex justify-between items-center text-[12px] text-[#86868b] pt-2 border-t border-[#e8e8ed]">
+                          <span className="flex items-center gap-1 text-[#6e6e73] font-medium">
+                            <User size={12} /> {log.completedBy.split(' ')[0]}
                           </span>
                           <span>{log.date}</span>
                         </div>
@@ -380,52 +371,54 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
         </>
       )}
 
-      {/* Pop Up Form for Task Completion */}
+      {/* Modal: Log completion */}
       {completingTaskId && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-sm overflow-hidden font-sans shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 text-zinc-200 flex justify-between items-center text-xs font-semibold uppercase tracking-wider font-display">
-              <h3>Log Routine Completed Checks</h3>
-              <button type="button" onClick={() => setCompletingTaskId(null)} className="text-zinc-400 hover:text-zinc-200 text-lg cursor-pointer">&times;</button>
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Log completion</h3>
+              <button type="button" onClick={() => setCompletingTaskId(null)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
+                <X size={18} />
+              </button>
             </div>
 
-            <form onSubmit={handleCompleteChoreSubmit} className="p-5 space-y-4 text-xs text-zinc-300">
+            <form onSubmit={handleCompleteChoreSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Assigned Member *</label>
+                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Assigned member</label>
                 <input 
                   type="text"
                   value={completedBy}
                   onChange={(e) => setCompletedBy(e.target.value)}
                   placeholder="e.g. Venkatesh Incharge"
                   required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Observations Remarks *</label>
+                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Observations and remarks</label>
                 <textarea 
                   placeholder="Describe wiping piano keyboards, checking cables tension, vacuum filter conditions, etc..." 
                   value={completionRemarks}
                   onChange={(e) => setCompletionRemarks(e.target.value)}
                   required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 h-20 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] h-24 resize-none"
                 ></textarea>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
                 <button 
                   type="button" 
                   onClick={() => setCompletingTaskId(null)}
-                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer"
+                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer"
+                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
                 >
-                  Confirm Met
+                  Confirm
                 </button>
               </div>
             </form>
@@ -433,48 +426,50 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
         </div>
       )}
 
-      {/* Pop Up Form for Creating Checklists */}
+      {/* Modal: Create task */}
       {showAddNewChore && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-sm overflow-hidden font-sans shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center text-zinc-250 text-xs font-semibold uppercase tracking-wider font-display">
-              <h3>Create Custom Routine</h3>
-              <button type="button" onClick={() => setShowAddNewChore(false)} className="text-zinc-400 hover:text-zinc-200 text-lg cursor-pointer">&times;</button>
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Create routine task</h3>
+              <button type="button" onClick={() => setShowAddNewChore(false)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
+                <X size={18} />
+              </button>
             </div>
 
-            <form onSubmit={handleCreateChore} className="p-5 space-y-4 text-xs text-zinc-300">
+            <form onSubmit={handleCreateChore} className="p-6 space-y-5">
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Routine Title / Chore Name *</label>
+                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Task name</label>
                 <input 
                   type="text" 
                   placeholder="e.g. Acoustic guitar fret conditioning" 
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Frequency *</label>
+                  <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Frequency</label>
                   <select 
                     value={newFrequency}
                     onChange={(e) => setNewFrequency(e.target.value as any)}
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                   >
-                    <option value="daily">Daily Chores</option>
-                    <option value="weekly">Weekly Checklist</option>
-                    <option value="monthly">Monthly Audit</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Crew Role *</label>
+                  <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Crew role</label>
                   <select 
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value as any)}
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                   >
                     <option value="junior">Junior Incharge</option>
                     <option value="head">HOD Incharge</option>
@@ -484,29 +479,29 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Action Description and Steps *</label>
+                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Description</label>
                 <textarea 
-                  placeholder="Describe standard routines steps instructions..." 
+                  placeholder="Describe standard routine steps and instructions..." 
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 h-20 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] h-24 resize-none"
                 ></textarea>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
                 <button 
                   type="button" 
                   onClick={() => setShowAddNewChore(false)}
-                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer"
+                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer"
+                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
                 >
-                  Create Routine
+                  Create task
                 </button>
               </div>
             </form>

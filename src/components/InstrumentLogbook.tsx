@@ -45,10 +45,10 @@ interface SessionLog {
 }
 
 const STATUS_STYLES: Record<AssetStatus, { bg: string; text: string; label: string }> = {
-  operational: { bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400', label: 'Operational' },
-  needs_repair: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', label: 'Needs Repair' },
-  maintenance: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', label: 'Maintenance' },
-  missing: { bg: 'bg-zinc-500/10 border-zinc-500/20', text: 'text-zinc-400', label: 'Missing' },
+  operational: { bg: 'bg-[#34c759]/10', text: 'text-[#34c759]', label: 'Operational' },
+  needs_repair: { bg: 'bg-[#ff3b30]/10', text: 'text-[#ff3b30]', label: 'Needs repair' },
+  maintenance: { bg: 'bg-[#ff9f0a]/10', text: 'text-[#ff9f0a]', label: 'Maintenance' },
+  missing: { bg: 'bg-[#86868b]/10', text: 'text-[#86868b]', label: 'Missing' },
 };
 
 const EMPTY_ASSET = {
@@ -267,34 +267,31 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
   };
 
   return (
-    <div className="space-y-6 font-sans text-sm text-zinc-300">
+    <div className="space-y-6 font-sans">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-850 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-base font-semibold font-display text-zinc-100 flex items-center gap-2">
-            <Package size={18} className="text-emerald-400" />
-            Instruments & Asset Inventory
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">Track all department equipment, lending, and checkout history</p>
+          <h2 className="text-[22px] font-bold text-[#1d1d1f]">Inventory</h2>
+          <p className="text-[13px] text-[#86868b] mt-0.5">Track equipment and lending</p>
         </div>
         <div className="flex gap-2">
           {availableAssets.length > 0 && (
             <button
               onClick={() => setShowCheckoutForm(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors cursor-pointer shadow-sm uppercase tracking-wide select-none h-9"
+              className="flex items-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
             >
-              <ArrowRightLeft size={13} />
+              <ArrowRightLeft size={14} />
               Checkout
             </button>
           )}
           {isAdmin && (
             <button
               onClick={openAddAsset}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm uppercase tracking-wide select-none h-9"
+              className="flex items-center gap-1.5 bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
             >
-              <Plus size={13} />
-              Add Asset
+              <Plus size={14} />
+              Add asset
             </button>
           )}
         </div>
@@ -303,22 +300,22 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
       {/* Search + Category Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-2.5 text-zinc-500" />
+          <Search size={14} className="absolute left-3 top-2.5 text-[#86868b]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search assets..."
-            className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:border-zinc-700 focus:outline-none text-zinc-200 text-xs"
+            className="w-full pl-9 pr-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]"
           />
         </div>
 
         {categories.length > 0 && (
-          <div className="flex items-center bg-zinc-900 p-0.5 rounded-lg border border-zinc-800 select-none flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer ${
-                selectedCategory === 'all' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer ${
+                selectedCategory === 'all' ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
               }`}
             >
               All
@@ -327,8 +324,8 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer capitalize ${
-                  selectedCategory === cat ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+                className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer capitalize ${
+                  selectedCategory === cat ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
                 }`}
               >
                 {cat}
@@ -340,13 +337,13 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
 
       {/* Asset Grid */}
       {loading ? (
-        <div className="text-center py-20 text-zinc-500 animate-pulse uppercase text-xs">Loading inventory...</div>
+        <div className="text-center py-20 text-[#86868b] text-[14px] animate-pulse">Loading inventory...</div>
       ) : assets.length === 0 ? (
-        <div className="text-center py-20 bg-zinc-950/20 border border-dashed border-zinc-800 rounded-xl space-y-3">
-          <Package size={40} className="text-zinc-700 mx-auto" />
-          <p className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">No Assets Added Yet</p>
-          <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
-            {isAdmin ? 'Click "Add Asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
+        <div className="text-center py-20 space-y-3">
+          <Package size={36} className="text-[#d2d2d7] mx-auto" />
+          <p className="text-[15px] font-semibold text-[#6e6e73]">No assets added yet</p>
+          <p className="text-[13px] text-[#86868b] max-w-sm mx-auto">
+            {isAdmin ? 'Click "Add asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
           </p>
         </div>
       ) : (
@@ -354,75 +351,71 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
           {filteredAssets.map(asset => {
             const statusStyle = STATUS_STYLES[asset.status] || STATUS_STYLES.operational;
             return (
-              <div key={asset.id} className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 space-y-3 hover:border-zinc-750 transition-all shadow-sm group relative">
+              <div key={asset.id} className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-3 group relative">
                 {/* Admin actions */}
                 {isAdmin && (
-                  <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-zinc-400 hover:text-white cursor-pointer" title="Edit">
-                      <Edit size={11} />
+                  <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors" title="Edit">
+                      <Edit size={12} />
                     </button>
-                    <button onClick={() => setDeletingAssetId(asset.id)} className="p-1.5 bg-zinc-950 border border-red-900/50 rounded-md text-red-400 hover:text-red-300 cursor-pointer" title="Delete">
-                      <Trash2 size={11} />
+                    <button onClick={() => setDeletingAssetId(asset.id)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#ff3b30] hover:text-[#ff453a] cursor-pointer transition-colors" title="Delete">
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 )}
 
                 {/* Asset info */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h4 className="text-sm font-semibold text-zinc-100 leading-tight">{asset.name}</h4>
-                    {asset.model && <p className="text-[10px] text-zinc-500 mt-0.5">{asset.model}</p>}
-                  </div>
+                <div>
+                  <h4 className="text-[15px] font-semibold text-[#1d1d1f] leading-tight">{asset.name}</h4>
+                  {asset.model && <p className="text-[12px] text-[#86868b] mt-0.5">{asset.model}</p>}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
                   {asset.category && (
-                    <span className="text-[9px] px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-full font-medium uppercase tracking-wide flex items-center gap-1">
-                      <Tag size={8} /> {asset.category}
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
+                      {asset.category}
                     </span>
                   )}
-                  <span className={`text-[9px] px-2 py-0.5 ${statusStyle.bg} ${statusStyle.text} border rounded-full font-medium uppercase tracking-wide`}>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${statusStyle.bg} ${statusStyle.text}`}>
                     {statusStyle.label}
                   </span>
                 </div>
 
                 {asset.location && (
-                  <p className="text-[10px] text-zinc-500 flex items-center gap-1">
-                    <MapPin size={10} /> {asset.location}
+                  <p className="text-[12px] text-[#86868b] flex items-center gap-1">
+                    <MapPin size={11} /> {asset.location}
                   </p>
                 )}
 
                 {asset.serialNumber && (
-                  <p className="text-[10px] text-zinc-600 font-mono">SN: {asset.serialNumber}</p>
+                  <p className="text-[12px] text-[#86868b]">SN: {asset.serialNumber}</p>
                 )}
 
                 {/* Lending Status */}
                 {asset.lentTo ? (
-                  <div className="p-2.5 bg-amber-500/5 border border-amber-500/15 rounded-lg">
-                    <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide flex items-center gap-1">
-                      <User size={10} /> Lent to: {asset.lentTo}
-                    </p>
+                  <div className="text-[13px] text-[#ff9f0a]">
+                    <span className="font-medium">Lent to: {asset.lentTo}</span>
                     {asset.lentAt && (
-                      <p className="text-[9px] text-amber-500/70 mt-0.5">Since: {formatDateTime(asset.lentAt)}</p>
+                      <span className="text-[12px] text-[#86868b] ml-2">since {formatDateTime(asset.lentAt)}</span>
                     )}
                   </div>
                 ) : asset.status === 'operational' && (
-                  <p className="text-[10px] text-emerald-500/70 flex items-center gap-1">
-                    <CheckCircle size={10} /> Available
+                  <p className="text-[13px] text-[#34c759] flex items-center gap-1">
+                    <CheckCircle size={12} /> Available
                   </p>
                 )}
 
                 {asset.remarks && (
-                  <p className="text-[10px] text-zinc-500 italic border-t border-zinc-850 pt-2">{asset.remarks}</p>
+                  <p className="text-[12px] text-[#86868b] italic border-t border-[#e8e8ed] pt-2">{asset.remarks}</p>
                 )}
 
                 {/* Delete confirmation */}
                 {deletingAssetId === asset.id && (
-                  <div className="p-2.5 bg-red-500/5 border border-red-500/20 rounded-lg flex items-center justify-between">
-                    <span className="text-[10px] text-red-400 font-medium">Delete this asset?</span>
+                  <div className="p-3 bg-[#ff3b30]/5 border border-[#ff3b30]/20 rounded-xl flex items-center justify-between">
+                    <span className="text-[13px] text-[#ff3b30] font-medium">Delete this asset?</span>
                     <div className="flex gap-2">
-                      <button onClick={() => handleDeleteAsset(asset.id)} className="px-3 py-1 text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer">Yes</button>
-                      <button onClick={() => setDeletingAssetId(null)} className="px-3 py-1 text-[10px] font-semibold bg-zinc-800 text-zinc-300 rounded cursor-pointer">No</button>
+                      <button onClick={() => handleDeleteAsset(asset.id)} className="bg-[#ff3b30] hover:bg-[#ff453a] text-white rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">Yes</button>
+                      <button onClick={() => setDeletingAssetId(null)} className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">No</button>
                     </div>
                   </div>
                 )}
@@ -434,19 +427,18 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
 
       {/* Checkout/Return History */}
       {sessions.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-5 space-y-4">
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h3 className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wide font-display">
-              <Clock size={13} className="text-emerald-400" />
-              Checkout History
+            <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+              Checkout history
             </h3>
-            <div className="flex bg-zinc-950 p-0.5 rounded-lg border border-zinc-800 select-none">
+            <div className="flex items-center gap-1.5">
               {(['active', 'completed', 'all'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setSessionFilter(f)}
-                  className={`px-3 py-1 rounded-md text-[10px] font-medium capitalize transition-all cursor-pointer ${
-                    sessionFilter === f ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+                  className={`px-3 py-1.5 rounded-full text-[13px] font-medium capitalize transition-colors cursor-pointer ${
+                    sessionFilter === f ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
                   }`}
                 >
                   {f}
@@ -455,59 +447,59 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
             </div>
           </div>
 
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-96 overflow-y-auto">
             {filteredSessions.length === 0 ? (
-              <p className="text-center py-8 text-zinc-500 text-xs uppercase">No {sessionFilter} sessions</p>
+              <p className="text-center py-8 text-[#86868b] text-[13px]">No {sessionFilter} sessions</p>
             ) : (
               filteredSessions.map(session => (
-                <div key={session.id} className="p-3 bg-zinc-950/40 rounded-lg border border-zinc-850 text-xs space-y-2">
+                <div key={session.id} className="p-4 bg-[#f5f5f7] rounded-xl text-[13px] space-y-2">
                   <div className="flex justify-between items-start gap-2">
                     <div>
-                      <span className="font-semibold text-zinc-200">{session.assetName || session.assetId}</span>
-                      <span className="text-zinc-600 mx-1.5">→</span>
-                      <span className="text-zinc-300">{session.studentName}</span>
-                      {session.rollNumber && <span className="text-zinc-600 ml-1">({session.rollNumber})</span>}
+                      <span className="font-semibold text-[#1d1d1f]">{session.assetName || session.assetId}</span>
+                      <span className="text-[#86868b] mx-1.5">→</span>
+                      <span className="text-[#1d1d1f]">{session.studentName}</span>
+                      {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
                     </div>
-                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-medium uppercase border ${
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
                       session.status === 'active'
-                        ? 'bg-sky-500/10 text-sky-400 border-sky-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        ? 'bg-[#0071e3]/10 text-[#0071e3]'
+                        : 'bg-[#34c759]/10 text-[#34c759]'
                     }`}>
-                      {session.status}
+                      {session.status === 'active' ? 'Active' : 'Completed'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[10px] text-zinc-500">
+                  <div className="flex justify-between items-center text-[12px] text-[#86868b]">
                     <span className="capitalize">{session.purpose}</span>
                     <span>{formatDateTime(session.checkInTime)}</span>
                   </div>
 
-                  {session.notes && <p className="text-[10px] text-zinc-500 italic">"{session.notes}"</p>}
+                  {session.notes && <p className="text-[12px] text-[#86868b] italic">"{session.notes}"</p>}
 
                   {/* Return button for active sessions */}
                   {session.status === 'active' && (
                     returningSessionId === session.id ? (
-                      <div className="pt-2 border-t border-zinc-850 space-y-2">
+                      <div className="pt-2 border-t border-[#e8e8ed] space-y-2">
                         <input
                           type="text"
                           value={returnNotes}
                           onChange={(e) => setReturnNotes(e.target.value)}
                           placeholder="Return notes (optional)..."
-                          className="w-full p-2 bg-zinc-900 border border-zinc-800 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                          className="w-full px-3 py-2.5 bg-white border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]"
                         />
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => setReturningSessionId(null)} className="px-3 py-1.5 text-[10px] font-medium bg-zinc-800 text-zinc-300 rounded cursor-pointer">Cancel</button>
-                          <button onClick={() => handleReturn(session)} className="px-3 py-1.5 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded cursor-pointer flex items-center gap-1">
-                            <RotateCcw size={10} /> Confirm Return
+                          <button onClick={() => setReturningSessionId(null)} className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
+                          <button onClick={() => handleReturn(session)} className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors flex items-center gap-1">
+                            <RotateCcw size={12} /> Confirm return
                           </button>
                         </div>
                       </div>
                     ) : (
                       <button
                         onClick={() => setReturningSessionId(session.id)}
-                        className="text-[10px] text-sky-400 hover:text-sky-300 font-medium cursor-pointer flex items-center gap-1 pt-1"
+                        className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors flex items-center gap-1 pt-1"
                       >
-                        <RotateCcw size={10} /> Return Item
+                        <RotateCcw size={12} /> Return item
                       </button>
                     )
                   )}
@@ -520,82 +512,82 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
 
       {/* Add/Edit Asset Modal */}
       {showAssetForm && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-md overflow-hidden font-sans shadow-2xl">
-            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center">
-              <h3 className="text-xs font-semibold uppercase tracking-wider font-display text-zinc-200">
-                {editingAssetId ? 'Edit Asset' : 'Add New Asset'}
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                {editingAssetId ? 'Edit asset' : 'Add new asset'}
               </h3>
-              <button onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }} className="text-zinc-400 hover:text-zinc-200 cursor-pointer">
-                <X size={16} />
+              <button onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAssetSubmit} className="p-5 space-y-4 text-xs text-zinc-300">
+            <form onSubmit={handleAssetSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Name *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Name *</label>
                 <input type="text" value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
                   placeholder="e.g. Yamaha Keyboard" required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Category *</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Category *</label>
                   <input type="text" list="category-suggestions" value={assetForm.category} onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
                     placeholder="e.g. Instrument" required
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
                   <datalist id="category-suggestions">
                     {categories.map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Status *</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Status *</label>
                   <select value={assetForm.status} onChange={(e) => setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })}
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
                     <option value="operational">Operational</option>
-                    <option value="needs_repair">Needs Repair</option>
-                    <option value="maintenance">Under Maintenance</option>
+                    <option value="needs_repair">Needs repair</option>
+                    <option value="maintenance">Under maintenance</option>
                     <option value="missing">Missing</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Model</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Model</label>
                 <input type="text" value={assetForm.model} onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
                   placeholder="e.g. P-125"
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Serial Number</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Serial number</label>
                   <input type="text" value={assetForm.serialNumber} onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
                     placeholder="e.g. SN-12345"
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Location</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Location</label>
                   <input type="text" value={assetForm.location} onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
                     placeholder="e.g. Main Studio"
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Remarks</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Remarks</label>
                 <textarea value={assetForm.remarks} onChange={(e) => setAssetForm({ ...assetForm, remarks: e.target.value })}
                   placeholder="Any notes about this item..."
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 h-16 text-xs" />
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] h-20 resize-none" />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
                 <button type="button" onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }}
-                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer">Cancel</button>
+                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
                 <button type="submit"
-                  className="px-4 py-2 text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer">
-                  {editingAssetId ? 'Save Changes' : 'Add Asset'}
+                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors">
+                  {editingAssetId ? 'Save changes' : 'Add asset'}
                 </button>
               </div>
             </form>
@@ -605,20 +597,20 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
 
       {/* Checkout Modal */}
       {showCheckoutForm && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-sm overflow-hidden font-sans shadow-2xl">
-            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center">
-              <h3 className="text-xs font-semibold uppercase tracking-wider font-display text-zinc-200">Checkout Item</h3>
-              <button onClick={() => setShowCheckoutForm(false)} className="text-zinc-400 hover:text-zinc-200 cursor-pointer">
-                <X size={16} />
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Checkout item</h3>
+              <button onClick={() => setShowCheckoutForm(false)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCheckout} className="p-5 space-y-4 text-xs text-zinc-300">
+            <form onSubmit={handleCheckout} className="p-6 space-y-4">
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Select Item *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Select item *</label>
                 <select value={checkoutAssetId} onChange={(e) => setCheckoutAssetId(e.target.value)} required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
                   <option value="">Choose an item...</option>
                   {availableAssets.map(a => (
                     <option key={a.id} value={a.id}>{a.name} ({a.category})</option>
@@ -627,21 +619,21 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Your Name *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Your name *</label>
                 <input type="text" value={checkoutName} onChange={(e) => setCheckoutName(e.target.value)} required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Roll Number *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Roll number *</label>
                 <input type="text" value={checkoutRoll} onChange={(e) => setCheckoutRoll(e.target.value)} required placeholder="e.g. 20BCSE01"
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs" />
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Purpose *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Purpose *</label>
                 <select value={checkoutPurpose} onChange={(e) => setCheckoutPurpose(e.target.value)}
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 cursor-pointer text-xs">
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
                   <option value="composition">Composition</option>
                   <option value="recording">Recording</option>
                   <option value="mixing">Mixing & Mastering</option>
@@ -650,11 +642,11 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
                 <button type="button" onClick={() => setShowCheckoutForm(false)}
-                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer">Cancel</button>
+                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
                 <button type="submit"
-                  className="px-4 py-2 text-zinc-100 bg-sky-600 hover:bg-sky-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer">Checkout</button>
+                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors">Checkout</button>
               </div>
             </form>
           </div>

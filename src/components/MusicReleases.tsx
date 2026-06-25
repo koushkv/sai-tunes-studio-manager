@@ -170,74 +170,71 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
   };
 
   return (
-    <div className="space-y-6 font-sans text-sm text-zinc-300">
+    <div className="space-y-6 font-sans">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-850 pb-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-base font-semibold font-display text-zinc-100 flex items-center gap-2">
-            <Music size={18} className="text-emerald-400" />
-            Music Releases
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">Our music across streaming platforms</p>
+          <h2 className="text-[22px] font-bold text-[#1d1d1f]">Releases</h2>
+          <p className="text-[13px] text-[#86868b] mt-1">Our music across streaming platforms</p>
         </div>
         {isAdmin && (
           <button
             onClick={openAddForm}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm uppercase tracking-wide select-none h-9"
+            className="flex items-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
           >
-            <Plus size={13} />
-            Add Release
+            <Plus size={14} />
+            Add release
           </button>
         )}
       </div>
 
       {/* Streaming Platform Links — Coming Soon */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
-          <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#1DB95420', color: '#1DB954' }}>♫</div>
-          <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">Spotify</p>
-            <p className="text-[10px] text-zinc-500">Artist profile coming soon</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold bg-[#1DB954]/10 text-[#1DB954]">♫</div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">Spotify</p>
+            <p className="text-[12px] text-[#86868b]">Artist profile coming soon</p>
           </div>
-          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+          <span className="ml-auto px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#ff9f0a]/10 text-[#ff9f0a] whitespace-nowrap">Coming soon</span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
-          <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#FC3C4420', color: '#FC3C44' }}>♪</div>
-          <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">Apple Music</p>
-            <p className="text-[10px] text-zinc-500">Artist profile coming soon</p>
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold bg-[#FC3C44]/10 text-[#FC3C44]">♪</div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">Apple Music</p>
+            <p className="text-[12px] text-[#86868b]">Artist profile coming soon</p>
           </div>
-          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+          <span className="ml-auto px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#ff9f0a]/10 text-[#ff9f0a] whitespace-nowrap">Coming soon</span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
-          <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#FF000020', color: '#FF0000' }}>▶</div>
-          <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">YouTube Music</p>
-            <p className="text-[10px] text-zinc-500">Channel coming soon</p>
+        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold bg-[#FF0000]/10 text-[#FF0000]">▶</div>
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">YouTube Music</p>
+            <p className="text-[12px] text-[#86868b]">Channel coming soon</p>
           </div>
-          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+          <span className="ml-auto px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#ff9f0a]/10 text-[#ff9f0a] whitespace-nowrap">Coming soon</span>
         </div>
       </div>
 
       {/* Year Filter */}
       {years.length > 0 && (
-        <div className="flex items-center bg-zinc-900 p-0.5 rounded-lg border border-zinc-800 w-fit select-none">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setSelectedYear('all')}
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-              selectedYear === 'all' ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+            className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer ${
+              selectedYear === 'all' ? 'bg-[#1d1d1f] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
             }`}
           >
-            All Years
+            All years
           </button>
           {years.map(year => (
             <button
               key={year}
               onClick={() => setSelectedYear(year)}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                selectedYear === year ? 'bg-zinc-800 text-emerald-400 border border-zinc-700 shadow-sm font-semibold' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer ${
+                selectedYear === year ? 'bg-[#1d1d1f] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
               }`}
             >
               {year}
@@ -248,14 +245,13 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
 
       {/* Loading */}
       {loading ? (
-        <div className="text-center py-20 text-zinc-500 animate-pulse uppercase text-xs">Loading releases...</div>
+        <div className="text-center py-20 text-[#86868b] text-[14px] animate-pulse">Loading releases…</div>
       ) : releases.length === 0 ? (
         /* Empty State */
-        <div className="text-center py-20 bg-zinc-950/20 border border-dashed border-zinc-800 rounded-xl space-y-3">
-          <Disc3 size={40} className="text-zinc-700 mx-auto" />
-          <p className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">No Releases Yet</p>
-          <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
-            {isAdmin ? 'Click "Add Release" above to add your first music release.' : 'Music releases will appear here once the admin adds them.'}
+        <div className="text-center py-20">
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">No releases yet</p>
+          <p className="text-[13px] text-[#86868b] mt-1 max-w-sm mx-auto">
+            {isAdmin ? 'Click "Add release" above to add your first music release.' : 'Music releases will appear here once the admin adds them.'}
           </p>
         </div>
       ) : (
@@ -265,47 +261,47 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
             <div key={year}>
               {/* Year Header */}
               <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-lg font-display font-bold text-zinc-100">{year}</h3>
-                <span className="text-[9px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full font-semibold uppercase">
+                <h3 className="text-[17px] font-semibold text-[#1d1d1f]">{year}</h3>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
                   {groupedByYear[year].length} {groupedByYear[year].length === 1 ? 'release' : 'releases'}
                 </span>
-                <div className="flex-1 h-px bg-zinc-800/60"></div>
+                <div className="flex-1 h-px bg-[#e8e8ed]"></div>
               </div>
 
               {/* Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {groupedByYear[year].map(release => (
                   <div
                     key={release.id}
-                    className="bg-zinc-900 border border-zinc-800/80 rounded-xl overflow-hidden hover:border-zinc-700 transition-all shadow-sm group"
+                    className="bg-white rounded-2xl border border-[#e8e8ed] overflow-hidden group"
                   >
                     {/* Cover Art */}
-                    <div className="relative h-44 bg-zinc-950 flex items-center justify-center overflow-hidden">
+                    <div className="relative h-44 bg-[#f5f5f7] flex items-center justify-center overflow-hidden">
                       {release.coverUrl ? (
                         <img
                           src={release.coverUrl}
                           alt={release.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <Disc3 size={48} className="text-zinc-800 animate-spin-slow" />
+                        <Disc3 size={48} className="text-[#d2d2d7]" />
                       )}
                       {/* Admin overlay */}
                       {isAdmin && (
-                        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-colors">
                           <button
                             onClick={() => openEditForm(release)}
-                            className="p-1.5 bg-zinc-900/90 border border-zinc-700 rounded-md text-zinc-300 hover:text-white cursor-pointer transition-colors"
+                            className="p-1.5 bg-white/90 border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors"
                             title="Edit"
                           >
-                            <Edit size={11} />
+                            <Edit size={12} />
                           </button>
                           <button
                             onClick={() => setDeletingId(release.id)}
-                            className="p-1.5 bg-zinc-900/90 border border-red-900/50 rounded-md text-red-400 hover:text-red-300 cursor-pointer transition-colors"
+                            className="p-1.5 bg-white/90 border border-[#d2d2d7] rounded-lg text-[#ff3b30] hover:text-[#ff453a] cursor-pointer transition-colors"
                             title="Delete"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       )}
@@ -314,33 +310,32 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                     {/* Card Body */}
                     <div className="p-4 space-y-3">
                       <div>
-                        <h4 className="text-sm font-semibold text-zinc-100 leading-tight">{release.title}</h4>
-                        <p className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
-                          <Calendar size={10} /> {formatDate(release.releaseDate)}
+                        <h4 className="text-[14px] font-semibold text-[#1d1d1f] leading-tight">{release.title}</h4>
+                        <p className="text-[12px] text-[#86868b] mt-1 flex items-center gap-1">
+                          <Calendar size={11} /> {formatDate(release.releaseDate)}
                         </p>
                       </div>
 
                       {release.description && (
-                        <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">{release.description}</p>
+                        <p className="text-[13px] text-[#6e6e73] leading-relaxed line-clamp-2">{release.description}</p>
                       )}
 
                       {release.credits && (
-                        <p className="text-[10px] text-zinc-500 italic flex items-center gap-1">
-                          <Users size={10} /> {release.credits}
+                        <p className="text-[12px] text-[#86868b] flex items-center gap-1">
+                          <Users size={11} /> {release.credits}
                         </p>
                       )}
 
                       {/* Streaming Links */}
-                      <div className="flex gap-2 pt-2 border-t border-zinc-850">
+                      <div className="flex gap-2 pt-3 border-t border-[#e8e8ed] flex-wrap">
                         {release.spotifyUrl && (
                           <a
                             href={release.spotifyUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider rounded-md transition-all cursor-pointer"
-                            style={{ background: '#1DB95415', color: '#1DB954', border: '1px solid #1DB95430' }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#1DB954]/10 text-[#1DB954] cursor-pointer transition-colors hover:bg-[#1DB954]/20"
                           >
-                            Spotify <ExternalLink size={9} />
+                            Spotify <ExternalLink size={10} />
                           </a>
                         )}
                         {release.appleMusicUrl && (
@@ -348,10 +343,9 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                             href={release.appleMusicUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider rounded-md transition-all cursor-pointer"
-                            style={{ background: '#FC3C4415', color: '#FC3C44', border: '1px solid #FC3C4430' }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FC3C44]/10 text-[#FC3C44] cursor-pointer transition-colors hover:bg-[#FC3C44]/20"
                           >
-                            Apple <ExternalLink size={9} />
+                            Apple <ExternalLink size={10} />
                           </a>
                         )}
                         {release.youtubeMusicUrl && (
@@ -359,10 +353,9 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                             href={release.youtubeMusicUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider rounded-md transition-all cursor-pointer"
-                            style={{ background: '#FF000015', color: '#FF0000', border: '1px solid #FF000030' }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FF0000]/10 text-[#FF0000] cursor-pointer transition-colors hover:bg-[#FF0000]/20"
                           >
-                            YouTube <ExternalLink size={9} />
+                            YouTube <ExternalLink size={10} />
                           </a>
                         )}
                       </div>
@@ -370,11 +363,11 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
 
                     {/* Delete confirmation */}
                     {deletingId === release.id && (
-                      <div className="p-3 bg-red-500/5 border-t border-red-500/20 flex items-center justify-between">
-                        <span className="text-[10px] text-red-400 font-medium uppercase">Delete this release?</span>
+                      <div className="p-3 bg-[#ff3b30]/5 border-t border-[#ff3b30]/20 flex items-center justify-between">
+                        <span className="text-[12px] text-[#ff3b30] font-medium">Delete this release?</span>
                         <div className="flex gap-2">
-                          <button onClick={() => handleDelete(release.id)} className="px-3 py-1 text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer">Yes</button>
-                          <button onClick={() => setDeletingId(null)} className="px-3 py-1 text-[10px] font-semibold bg-zinc-800 text-zinc-300 rounded cursor-pointer">No</button>
+                          <button onClick={() => handleDelete(release.id)} className="bg-[#ff3b30] hover:bg-[#ff453a] text-white rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">Yes</button>
+                          <button onClick={() => setDeletingId(null)} className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">No</button>
                         </div>
                       </div>
                     )}
@@ -388,33 +381,33 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
 
       {/* Add/Edit Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs select-none">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800/80 w-full max-w-lg overflow-hidden font-sans shadow-2xl">
-            <div className="px-5 py-3.5 bg-zinc-950 border-b border-zinc-800/60 flex justify-between items-center">
-              <h3 className="text-xs font-semibold uppercase tracking-wider font-display text-zinc-200">
-                {editingId ? 'Edit Release' : 'Add New Release'}
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden font-sans">
+            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                {editingId ? 'Edit release' : 'Add new release'}
               </h3>
-              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-zinc-400 hover:text-zinc-200 cursor-pointer">
-                <X size={16} />
+              <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs text-zinc-300 max-h-[70vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Title *</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Title *</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="e.g. Sai Tunes Vol. 1"
                   required
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Year *</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Year *</label>
                   <input
                     type="number"
                     value={form.year}
@@ -422,99 +415,99 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                     min="2000"
                     max="2100"
                     required
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                   />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Release Date *</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Release date *</label>
                   <input
                     type="date"
                     value={form.releaseDate}
                     onChange={(e) => setForm({ ...form, releaseDate: e.target.value })}
                     required
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Cover Image URL</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Cover image URL</label>
                 <input
                   type="url"
                   value={form.coverUrl}
                   onChange={(e) => setForm({ ...form, coverUrl: e.target.value })}
                   placeholder="https://example.com/album-art.jpg"
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Spotify URL</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Spotify URL</label>
                   <input
                     type="url"
                     value={form.spotifyUrl}
                     onChange={(e) => setForm({ ...form, spotifyUrl: e.target.value })}
                     placeholder="https://open.spotify.com/album/..."
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                   />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Apple Music URL</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Apple Music URL</label>
                   <input
                     type="url"
                     value={form.appleMusicUrl}
                     onChange={(e) => setForm({ ...form, appleMusicUrl: e.target.value })}
                     placeholder="https://music.apple.com/album/..."
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                   />
                 </div>
                 <div>
-                  <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">YouTube Music URL</label>
+                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">YouTube Music URL</label>
                   <input
                     type="url"
                     value={form.youtubeMusicUrl}
                     onChange={(e) => setForm({ ...form, youtubeMusicUrl: e.target.value })}
                     placeholder="https://music.youtube.com/..."
-                    className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                    className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Description</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Brief description of the release..."
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 h-16 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] h-20 resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-zinc-400 font-medium mb-1.5 uppercase tracking-wider text-[10px]">Credits</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Credits</label>
                 <input
                   type="text"
                   value={form.credits}
                   onChange={(e) => setForm({ ...form, credits: e.target.value })}
                   placeholder="e.g. Composed by Koushik, Mixed by Arjun"
-                  className="w-full p-2 bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg focus:outline-none text-zinc-200 text-xs"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#e8e8ed]">
                 <button
                   type="button"
                   onClick={() => { setShowForm(false); setEditingId(null); }}
-                  className="px-4 py-2 text-zinc-400 bg-zinc-950 hover:bg-zinc-850 rounded-lg font-medium uppercase text-[10px] border border-zinc-800 cursor-pointer"
+                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-zinc-100 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold uppercase text-[10px] cursor-pointer"
+                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
                 >
-                  {editingId ? 'Save Changes' : 'Add Release'}
+                  {editingId ? 'Save changes' : 'Add release'}
                 </button>
               </div>
             </form>
