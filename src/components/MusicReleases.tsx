@@ -191,49 +191,34 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
         )}
       </div>
 
-      {/* Streaming Platform Links */}
+      {/* Streaming Platform Links — Coming Soon */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <a
-          href="https://open.spotify.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 hover:border-[#1DB954]/40 transition-all group cursor-pointer"
-        >
+        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
           <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#1DB95420', color: '#1DB954' }}>♫</div>
           <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide group-hover:text-[#1DB954] transition-colors">Spotify</p>
-            <p className="text-[10px] text-zinc-500">Listen on Spotify</p>
+            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">Spotify</p>
+            <p className="text-[10px] text-zinc-500">Artist profile coming soon</p>
           </div>
-          <ExternalLink size={12} className="ml-auto text-zinc-600 group-hover:text-[#1DB954] transition-colors" />
-        </a>
+          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+        </div>
 
-        <a
-          href="https://music.apple.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 hover:border-[#FC3C44]/40 transition-all group cursor-pointer"
-        >
+        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
           <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#FC3C4420', color: '#FC3C44' }}>♪</div>
           <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide group-hover:text-[#FC3C44] transition-colors">Apple Music</p>
-            <p className="text-[10px] text-zinc-500">Listen on Apple Music</p>
+            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">Apple Music</p>
+            <p className="text-[10px] text-zinc-500">Artist profile coming soon</p>
           </div>
-          <ExternalLink size={12} className="ml-auto text-zinc-600 group-hover:text-[#FC3C44] transition-colors" />
-        </a>
+          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+        </div>
 
-        <a
-          href="https://music.youtube.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 hover:border-[#FF0000]/40 transition-all group cursor-pointer"
-        >
+        <div className="bg-zinc-900 border border-zinc-800/80 p-4 rounded-xl flex items-center gap-3 select-none opacity-75">
           <div className="h-10 w-10 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#FF000020', color: '#FF0000' }}>▶</div>
           <div>
-            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide group-hover:text-[#FF0000] transition-colors">YouTube Music</p>
-            <p className="text-[10px] text-zinc-500">Listen on YouTube</p>
+            <p className="text-xs font-semibold text-zinc-100 uppercase tracking-wide">YouTube Music</p>
+            <p className="text-[10px] text-zinc-500">Channel coming soon</p>
           </div>
-          <ExternalLink size={12} className="ml-auto text-zinc-600 group-hover:text-[#FF0000] transition-colors" />
-        </a>
+          <span className="ml-auto text-[8px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">Coming Soon</span>
+        </div>
       </div>
 
       {/* Year Filter */}
