@@ -22,7 +22,7 @@ import {
   ListTodo,
   TrendingUp
 } from 'lucide-react';
-import { MaintenanceTask } from '../types';
+import { MaintenanceTask, UserRole } from '../types';
 
 interface MaintenanceSchedulerProps {
   currentUser: {
@@ -30,9 +30,10 @@ interface MaintenanceSchedulerProps {
     displayName: string;
   } | null;
   isAdmin: boolean;
+  userRole: UserRole | null;
 }
 
-export default function MaintenanceScheduler({ currentUser, isAdmin }: MaintenanceSchedulerProps) {
+export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }: MaintenanceSchedulerProps) {
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
   const [selectedFreq, setSelectedFreq] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedRole, setSelectedRole] = useState<'all' | 'head' | 'junior'>('all');
@@ -200,7 +201,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin }: Maintenan
           </h2>
           <p className="text-[13px] text-[#86868b] mt-1">Scheduled checks to prolong the life of recording monitors, computer modules, and instruments.</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || userRole === 'junior_admin') && (
           <button 
             type="button"
             onClick={() => setShowAddNewChore(true)}

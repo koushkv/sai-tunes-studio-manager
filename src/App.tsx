@@ -356,7 +356,7 @@ export default function App() {
                   <ProjectsTracker currentUser={user} isAdmin={isAdmin} />
                 )}
                 {activeTab === 'maintenance' && (
-                  <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} />
+                  <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
                 {activeTab === 'releases' && (
                   <MusicReleases currentUser={user} isAdmin={isAdmin} />

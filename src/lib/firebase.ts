@@ -9,7 +9,6 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
-  initializeFirestore,
   collection, 
   doc, 
   setDoc, 
@@ -34,7 +33,7 @@ const auth = getAuth(app);
 
 // Connect to the named Firestore database specified in the config
 const db = firebaseConfig.firestoreDatabaseId
-  ? initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId)
+  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
