@@ -257,18 +257,20 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
               ))}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <span className="text-[13px] text-[#86868b] font-medium">Role:</span>
-              <select 
-                value={selectedRole} 
-                onChange={(e) => setSelectedRole(e.target.value as any)}
-                className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
-              >
-                <option value="all">Everyone's chores</option>
-                <option value="head">Head of Dept</option>
-                <option value="junior">Junior Incharge</option>
-              </select>
-            </div>
+            {(isAdmin || userRole === 'junior_admin') && (
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <span className="text-[13px] text-[#86868b] font-medium">Role:</span>
+                <select 
+                  value={selectedRole} 
+                  onChange={(e) => setSelectedRole(e.target.value as any)}
+                  className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
+                >
+                  <option value="all">Everyone's chores</option>
+                  <option value="head">Head of Dept</option>
+                  <option value="junior">Junior Incharge</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -293,15 +295,17 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                           <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#86868b]/10 text-[#86868b]">{task.id}</span>
                           <h3 className="font-semibold text-[#1d1d1f] text-[15px] mt-2 leading-tight">{task.title}</h3>
                         </div>
-                        <span className={`px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap ${
-                          task.role === 'head' 
-                            ? 'bg-[#0071e3]/10 text-[#0071e3]' 
-                            : task.role === 'junior' 
-                              ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' 
-                              : 'bg-[#34c759]/10 text-[#34c759]'
-                        }`}>
-                          {task.role === 'head' ? 'Head of Dept' : task.role === 'junior' ? 'Junior Incharge' : 'Joint Duty'}
-                        </span>
+                        {(isAdmin || userRole === 'junior_admin') && (
+                          <span className={`px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap ${
+                            task.role === 'head' 
+                              ? 'bg-[#0071e3]/10 text-[#0071e3]' 
+                              : task.role === 'junior' 
+                                ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' 
+                                : 'bg-[#34c759]/10 text-[#34c759]'
+                          }`}>
+                            {task.role === 'head' ? 'Head of Dept' : task.role === 'junior' ? 'Junior Incharge' : 'Joint Duty'}
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-[13px] text-[#6e6e73] leading-relaxed">{task.description}</p>
