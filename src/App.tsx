@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   auth, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   googleProvider, 
   signOut, 
   onAuthStateChanged,
@@ -90,6 +92,24 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
+  // Handle redirect login results/errors on mount
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          console.log("Redirect login successful:", result.user);
+        }
+      })
+      .catch((err: any) => {
+        console.error("Google Auth redirect failed:", err);
+        if (err.code === 'auth/iframe-directory-not-found' || err.code === 'auth/operation-not-supported-in-this-environment') {
+          setAuthError("Google Login is restricted inside the sandboxed preview iframe.");
+        } else {
+          setAuthError(`Redirect login error: ${err.message}`);
+        }
+      });
+  }, []);
+
   // Check if user is allowed + determine role
   useEffect(() => {
     if (allowedUsersLoading) return;
@@ -136,11 +156,21 @@ export default function App() {
   const handleGoogleLogin = async () => {
     setAuthError('');
     try {
-      await signInWithPopup(auth, googleProvider);
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err: any) {
-      console.error("Google Auth popup failed:", err);
+      console.error("Google Auth login failed:", err);
       if (err.code === 'auth/popup-blocked') {
-        setAuthError("Popup was blocked by your browser. Please enable popups and try again.");
+        // Fallback to redirect if popup is blocked
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr: any) {
+          setAuthError(`Login error: ${redirectErr.message}`);
+        }
       } else if (err.code === 'auth/iframe-directory-not-found' || err.code === 'auth/operation-not-supported-in-this-environment') {
         setAuthError("Google Login is restricted inside the sandboxed preview iframe.");
       } else {
