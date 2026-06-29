@@ -332,13 +332,13 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
                         <>
                           <button
                             onClick={() => { setEditingEmail(user.email); setEditRole(user.role); }}
-                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => setConfirmDeleteEmail(user.email)}
-                            className="text-[#ff3b30] hover:text-[#ff453a] text-[13px] font-medium cursor-pointer transition-colors opacity-0 group-hover:opacity-100"
+                            className="text-[#ff3b30] hover:text-[#ff453a] text-[13px] font-medium cursor-pointer transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100"
                           >
                             Remove
                           </button>

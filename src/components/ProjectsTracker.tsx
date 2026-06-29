@@ -431,7 +431,7 @@ export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTracke
       {/* ── ADD/EDIT MODAL ── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
                 {editingProjectId ? 'Edit Project' : 'New Project'}
@@ -441,7 +441,7 @@ export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTracke
               </button>
             </div>
 
-            <form onSubmit={handleCreateOrEdit} className="p-6 space-y-4">
+            <form onSubmit={handleCreateOrEdit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Project / Song Name *</label>
                 <input
@@ -537,7 +537,7 @@ export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTracke
       {/* ── QUICK STAGE UPDATE MODAL ── */}
       {updatingProjectId && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Update Project Stage</h3>
               <button onClick={() => setUpdatingProjectId(null)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
@@ -545,7 +545,7 @@ export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTracke
               </button>
             </div>
 
-            <form onSubmit={handleQuickStageUpdate} className="p-6 space-y-4">
+            <form onSubmit={handleQuickStageUpdate} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Next Stage</label>
                 <select

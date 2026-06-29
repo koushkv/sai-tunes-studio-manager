@@ -185,21 +185,45 @@ export default function App() {
       
       {/* ── Header ── */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-[#d2d2d7]/60 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-6 h-12 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
           
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 select-none">
-            <h1 className="text-[15px] font-semibold tracking-tight text-[#1d1d1f]">
+          {/* Logo & profile in a row on mobile */}
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <h1 className="text-[16px] font-semibold tracking-tight text-[#1d1d1f]">
               Sai Tunes
             </h1>
+            
+            {/* Show user controls on mobile on the right */}
+            {user && isAllowed && (
+              <div className="flex items-center gap-2 md:hidden">
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowAdminTab(!showAdminTab)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                      showAdminTab
+                        ? 'bg-[#0071e3] text-white'
+                        : 'text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]'
+                    }`}
+                  >
+                    Settings
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="text-[12px] text-[#6e6e73] hover:text-[#1d1d1f] font-medium cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Nav + User — only when authenticated */}
           {user && isAllowed && (
-            <div className="flex items-center gap-1">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
               
-              {/* Tab Navigation */}
-              <nav className="flex items-center gap-0.5 mr-4">
+              {/* Tab Navigation - scrollable horizontally on mobile */}
+              <nav className="flex items-center gap-0.5 overflow-x-auto max-w-full no-scrollbar pb-1 sm:pb-0 w-full sm:w-auto justify-start sm:justify-center">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
@@ -207,7 +231,7 @@ export default function App() {
                       setActiveTab(tab.id as any);
                       setShowAdminTab(false);
                     }}
-                    className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all cursor-pointer whitespace-nowrap ${
                       activeTab === tab.id && !showAdminTab
                         ? 'bg-[#1d1d1f] text-white'
                         : 'text-[#6e6e73] hover:text-[#1d1d1f] hover:bg-black/[0.04]'
@@ -218,8 +242,8 @@ export default function App() {
                 ))}
               </nav>
 
-              {/* User controls */}
-              <div className="flex items-center gap-2 pl-3 border-l border-[#d2d2d7]/60">
+              {/* Desktop User controls */}
+              <div className="hidden md:flex items-center gap-2 pl-3 border-l border-[#d2d2d7]/60">
                 {isAdmin && (
                   <button
                     onClick={() => setShowAdminTab(!showAdminTab)}

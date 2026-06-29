@@ -379,7 +379,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       {/* Modal: Log completion */}
       {completingTaskId && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Log completion</h3>
               <button type="button" onClick={() => setCompletingTaskId(null)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
@@ -387,7 +387,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
               </button>
             </div>
 
-            <form onSubmit={handleCompleteChoreSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleCompleteChoreSubmit} className="p-6 space-y-5 overflow-y-auto">
               <div>
                 <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Assigned member</label>
                 <input 
@@ -434,7 +434,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       {/* Modal: Create task */}
       {showAddNewChore && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Create routine task</h3>
               <button type="button" onClick={() => setShowAddNewChore(false)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
@@ -442,7 +442,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
               </button>
             </div>
 
-            <form onSubmit={handleCreateChore} className="p-6 space-y-5">
+            <form onSubmit={handleCreateChore} className="p-6 space-y-5 overflow-y-auto">
               <div>
                 <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Task name</label>
                 <input 

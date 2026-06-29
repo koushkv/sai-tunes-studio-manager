@@ -354,7 +354,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               <div key={asset.id} className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-3 group relative">
                 {/* Admin actions */}
                 {isAdmin && (
-                  <div className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-4 right-4 flex gap-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity">
                     <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors" title="Edit">
                       <Edit size={12} />
                     </button>
@@ -513,7 +513,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
       {/* Add/Edit Asset Modal */}
       {showAssetForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
                 {editingAssetId ? 'Edit asset' : 'Add new asset'}
@@ -523,7 +523,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               </button>
             </div>
 
-            <form onSubmit={handleAssetSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleAssetSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Name *</label>
                 <input type="text" value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
@@ -598,7 +598,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
       {/* Checkout Modal */}
       {showCheckoutForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Checkout item</h3>
               <button onClick={() => setShowCheckoutForm(false)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
@@ -606,7 +606,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               </button>
             </div>
 
-            <form onSubmit={handleCheckout} className="p-6 space-y-4">
+            <form onSubmit={handleCheckout} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Select item *</label>
                 <select value={checkoutAssetId} onChange={(e) => setCheckoutAssetId(e.target.value)} required

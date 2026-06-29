@@ -288,7 +288,7 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                       )}
                       {/* Admin overlay */}
                       {isAdmin && (
-                        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-colors">
+                        <div className="absolute top-2 right-2 flex gap-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-colors">
                           <button
                             onClick={() => openEditForm(release)}
                             className="p-1.5 bg-white/90 border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors"
@@ -382,7 +382,7 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
       {/* Add/Edit Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden font-sans">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden font-sans max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
               <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
                 {editingId ? 'Edit release' : 'Add new release'}
