@@ -376,16 +376,16 @@ export default function App() {
             ) : (
               <div className="space-y-6">
                 {activeTab === 'instruments' && (
-                  <InstrumentLogbook currentUser={user} isAdmin={isAdmin} />
+                  <InstrumentLogbook currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
                 {activeTab === 'projects' && (
-                  <ProjectsTracker currentUser={user} isAdmin={isAdmin} />
+                  <ProjectsTracker currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
                 {activeTab === 'maintenance' && (
                   <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
                 {activeTab === 'releases' && (
-                  <MusicReleases currentUser={user} isAdmin={isAdmin} />
+                  <MusicReleases currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
               </div>
             )}

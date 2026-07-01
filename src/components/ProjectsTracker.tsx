@@ -9,6 +9,7 @@ interface ProjectsTrackerProps {
     displayName: string;
   };
   isAdmin: boolean;
+  userRole: import('../types').UserRole | null;
 }
 
 const STAGES: { value: ProjectStage; label: string; bg: string; text: string; step: number }[] = [
@@ -20,7 +21,8 @@ const STAGES: { value: ProjectStage; label: string; bg: string; text: string; st
   { value: 'completed',   label: 'Completed',   bg: 'bg-[#34c759]/10', text: 'text-[#34c759]', step: 6 },
 ];
 
-export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTrackerProps) {
+export default function ProjectsTracker({ currentUser, isAdmin, userRole }: ProjectsTrackerProps) {
+  const canManage = isAdmin || userRole === 'junior_admin';
   const [projects, setProjects] = useState<MusicProject[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -324,7 +326,7 @@ export default function ProjectsTracker({ currentUser, isAdmin }: ProjectsTracke
                       >
                         <Edit size={16} />
                       </button>
-                      {isAdmin && (
+                      {canManage && (
                         <button
                           onClick={() => handleDelete(project.id)}
                           className="text-[#ff3b30] hover:text-[#ff453a] p-1.5 rounded-full hover:bg-[#ff3b30]/10 transition-colors cursor-pointer"

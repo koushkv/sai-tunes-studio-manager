@@ -29,6 +29,7 @@ import { Asset, AssetStatus } from '../types';
 interface InstrumentLogbookProps {
   currentUser: { email: string; displayName: string; photoURL: string | null };
   isAdmin: boolean;
+  userRole: import('../types').UserRole | null;
 }
 
 interface SessionLog {
@@ -55,7 +56,8 @@ const EMPTY_ASSET = {
   name: '', category: '', model: '', serialNumber: '', location: '', status: 'operational' as AssetStatus, remarks: '',
 };
 
-export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLogbookProps) {
+export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: InstrumentLogbookProps) {
+  const canManage = isAdmin || userRole === 'junior_admin';
   const [assets, setAssets] = useState<Asset[]>([]);
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,7 +287,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
               Checkout
             </button>
           )}
-          {isAdmin && (
+          {canManage && (
             <button
               onClick={openAddAsset}
               className="flex items-center gap-1.5 bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
@@ -343,7 +345,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
           <Package size={36} className="text-[#d2d2d7] mx-auto" />
           <p className="text-[15px] font-semibold text-[#6e6e73]">No assets added yet</p>
           <p className="text-[13px] text-[#86868b] max-w-sm mx-auto">
-            {isAdmin ? 'Click "Add asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
+            {canManage ? 'Click "Add asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
           </p>
         </div>
       ) : (
@@ -353,7 +355,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin }: InstrumentLo
             return (
               <div key={asset.id} className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-3 group relative">
                 {/* Admin actions */}
-                {isAdmin && (
+                {canManage && (
                   <div className="absolute top-4 right-4 flex gap-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity">
                     <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors" title="Edit">
                       <Edit size={12} />

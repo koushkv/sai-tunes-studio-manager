@@ -24,6 +24,7 @@ import {
 interface MusicReleasesProps {
   currentUser: { email: string; displayName: string; photoURL: string | null };
   isAdmin: boolean;
+  userRole: import('../types').UserRole | null;
 }
 
 interface MusicRelease {
@@ -53,7 +54,8 @@ const EMPTY_FORM: Omit<MusicRelease, 'id' | 'addedBy' | 'addedAt'> = {
   credits: '',
 };
 
-export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesProps) {
+export default function MusicReleases({ currentUser, isAdmin, userRole }: MusicReleasesProps) {
+  const canManage = isAdmin || userRole === 'junior_admin';
   const [releases, setReleases] = useState<MusicRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
@@ -177,7 +179,7 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
           <h2 className="text-[22px] font-bold text-[#1d1d1f]">Releases</h2>
           <p className="text-[13px] text-[#86868b] mt-1">Our music across streaming platforms</p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <button
             onClick={openAddForm}
             className="flex items-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
@@ -251,7 +253,7 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
         <div className="text-center py-20">
           <p className="text-[17px] font-semibold text-[#1d1d1f]">No releases yet</p>
           <p className="text-[13px] text-[#86868b] mt-1 max-w-sm mx-auto">
-            {isAdmin ? 'Click "Add release" above to add your first music release.' : 'Music releases will appear here once the admin adds them.'}
+            {canManage ? 'Click "Add release" above to add your first music release.' : 'Music releases will appear here once the admin adds them.'}
           </p>
         </div>
       ) : (
@@ -287,7 +289,7 @@ export default function MusicReleases({ currentUser, isAdmin }: MusicReleasesPro
                         <Disc3 size={48} className="text-[#d2d2d7]" />
                       )}
                       {/* Admin overlay */}
-                      {isAdmin && (
+                      {canManage && (
                         <div className="absolute top-2 right-2 flex gap-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-colors">
                           <button
                             onClick={() => openEditForm(release)}
