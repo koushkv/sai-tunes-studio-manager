@@ -190,7 +190,7 @@ export default function MusicReleases({ currentUser, isAdmin, userRole }: MusicR
         )}
       </div>
 
-      {/* Streaming Platform Links — Coming Soon */}
+      {/* Streaming Platform Links - Coming Soon */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold bg-[#1DB954]/10 text-[#1DB954]">♫</div>

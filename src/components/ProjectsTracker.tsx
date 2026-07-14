@@ -228,7 +228,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
   return (
     <div className="space-y-6 font-sans">
       
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-[28px] font-bold tracking-tight text-[#1d1d1f]">Projects</h2>
@@ -242,7 +242,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
         </button>
       </div>
 
-      {/* ── Stats Row ── */}
+      {/* -- Stats Row -- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
           <p className="text-[12px] text-[#86868b] font-medium">Active projects</p>
@@ -264,7 +264,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
         </div>
       </div>
 
-      {/* ── Main List ── */}
+      {/* -- Main List -- */}
       {loading ? (
         <div className="text-center py-20 text-[#86868b] text-[14px]">Syncing project catalog…</div>
       ) : projects.length === 0 ? (
@@ -430,7 +430,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
         </div>
       )}
 
-      {/* ── ADD/EDIT MODAL ── */}
+      {/* -- ADD/EDIT MODAL -- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
@@ -536,7 +536,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
         </div>
       )}
 
-      {/* ── QUICK STAGE UPDATE MODAL ── */}
+      {/* -- QUICK STAGE UPDATE MODAL -- */}
       {updatingProjectId && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans max-h-[90vh] flex flex-col">

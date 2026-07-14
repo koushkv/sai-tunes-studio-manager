@@ -48,11 +48,11 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newFrequency, setNewFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [newRole, setNewRole] = useState<'junior' | 'head' | 'both'>('junior');
+  const [newRole, setNewRole] = useState<'junior' | 'head' | 'both'>('head');
 
   const [loading, setLoading] = useState(true);
 
-  // Sync tasks from Firestore — no auto-seeding, starts empty
+  // Sync tasks from Firestore - no auto-seeding, starts empty
   useEffect(() => {
     const tasksRef = collection(db, 'maintenance_tasks');
     const unsubscribe = onSnapshot(tasksRef, (snapshot) => {
@@ -229,7 +229,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
 
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
           <p className="text-[12px] text-[#86868b] font-medium">Responsible crew</p>
-          <p className="text-[17px] font-semibold text-[#1d1d1f]">HOD & Junior Incharge</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">HOD</p>
           <p className="text-[12px] text-[#86868b]">Hostel music department crew</p>
         </div>
       </div>
@@ -265,9 +265,8 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                   onChange={(e) => setSelectedRole(e.target.value as any)}
                   className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                 >
-                  <option value="all">Everyone's chores</option>
-                  <option value="head">Head of Dept</option>
-                  <option value="junior">Junior Incharge</option>
+                  <option value="all">All Chores</option>
+                  <option value="head">HOD Chores</option>
                 </select>
               </div>
             )}
@@ -303,7 +302,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                                 ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' 
                                 : 'bg-[#34c759]/10 text-[#34c759]'
                           }`}>
-                            {task.role === 'head' ? 'Head of Dept' : task.role === 'junior' ? 'Junior Incharge' : 'Joint Duty'}
+                            {task.role === 'both' ? 'Joint Duty' : 'HOD'}
                           </span>
                         )}
                       </div>
@@ -394,7 +393,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                   type="text"
                   value={completedBy}
                   onChange={(e) => setCompletedBy(e.target.value)}
-                  placeholder="e.g. HOD Incharge"
+                  placeholder="e.g. HOD Member"
                   required
                   className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
@@ -476,8 +475,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                     onChange={(e) => setNewRole(e.target.value as any)}
                     className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                   >
-                    <option value="junior">Junior Incharge</option>
-                    <option value="head">HOD Incharge</option>
+                    <option value="head">HOD</option>
                     <option value="both">Joint Duty</option>
                   </select>
                 </div>

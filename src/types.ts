@@ -1,6 +1,6 @@
 // === Asset Types ===
 export type AssetStatus = 'operational' | 'needs_repair' | 'maintenance' | 'missing';
-// Categories are now dynamic strings — admin can create any category
+// Categories are now dynamic strings - admin can create any category
 export type AssetCategory = string;
 
 export interface Asset {

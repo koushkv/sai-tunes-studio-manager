@@ -109,7 +109,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
     if (email === MASTER_EMAIL) return;
     try {
       await updateDoc(doc(db, 'allowed_users', email), { role });
-      flash(`✓ ROLE UPDATED: ${email} → ${role.toUpperCase()}`);
+      flash(`✓ ROLE UPDATED: ${email} -> ${role.toUpperCase()}`);
       setEditingEmail(null);
     } catch (err) {
       console.error('Error updating role:', err);
@@ -131,7 +131,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
 
   return (
     <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-6 font-sans max-w-2xl mx-auto">
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-[22px] font-bold text-[#1d1d1f]">
@@ -147,7 +147,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
         </div>
       </div>
 
-      {/* ── Flash Messages ── */}
+      {/* -- Flash Messages -- */}
       {successMsg && (
         <div className="p-3 bg-[#34c759]/10 text-[#34c759] text-[13px] rounded-xl flex items-center gap-2">
           <CheckCircle size={14} />
@@ -161,7 +161,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
         </div>
       )}
 
-      {/* ── Add User Form ── */}
+      {/* -- Add User Form -- */}
       <form onSubmit={handleAddUser} className="space-y-4 bg-[#f5f5f7] rounded-2xl p-5">
         <span className="text-[17px] font-semibold text-[#1d1d1f]">Add new user</span>
 
@@ -221,7 +221,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
         </div>
       </form>
 
-      {/* ── User List ── */}
+      {/* -- User List -- */}
       <div className="space-y-3">
         <span className="text-[17px] font-semibold text-[#1d1d1f]">
           All users
@@ -285,7 +285,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
                   {/* Right: actions */}
                   {!isMaster && (
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* ── Inline Role Editor ── */}
+                      {/* -- Inline Role Editor -- */}
                       {isEditing ? (
                         <div className="flex items-center gap-2">
                           <select
@@ -311,7 +311,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
                           </button>
                         </div>
                       ) : isConfirmingDelete ? (
-                        /* ── Delete Confirmation ── */
+                        /* -- Delete Confirmation -- */
                         <div className="flex items-center gap-2">
                           <span className="text-[13px] text-[#ff3b30] font-medium">Remove?</span>
                           <button
@@ -328,7 +328,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
                           </button>
                         </div>
                       ) : (
-                        /* ── Default Actions (visible on hover) ── */
+                        /* -- Default Actions (visible on hover) -- */
                         <>
                           <button
                             onClick={() => { setEditingEmail(user.email); setEditRole(user.role); }}

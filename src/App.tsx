@@ -183,7 +183,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f5f5f7] font-sans text-[#1d1d1f] flex flex-col antialiased">
       
-      {/* ── Header ── */}
+      {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-[#d2d2d7]/60 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
           
@@ -218,7 +218,7 @@ export default function App() {
             )}
           </div>
 
-          {/* Nav + User — only when authenticated */}
+          {/* Nav + User - only when authenticated */}
           {user && isAllowed && (
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
               
@@ -280,7 +280,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── Main Content ── */}
+      {/* Main Content */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-6 py-8">
         
         {/* Not logged in */}
@@ -358,7 +358,7 @@ export default function App() {
           </div>
 
         ) : (
-          /* ── Authorized Content ── */
+          /* Authorized Content */
           <>
             {showAdminTab ? (
               <div className="max-w-2xl mx-auto">
@@ -394,7 +394,7 @@ export default function App() {
 
       </main>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <footer className="py-6 px-6 text-center select-none">
         <p className="text-[12px] text-[#86868b]">
           Sai Tunes · Hostel Music Department · SSSIHL

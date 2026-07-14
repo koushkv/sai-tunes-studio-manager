@@ -458,7 +458,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   <div className="flex justify-between items-start gap-2">
                     <div>
                       <span className="font-semibold text-[#1d1d1f]">{session.assetName || session.assetId}</span>
-                      <span className="text-[#86868b] mx-1.5">→</span>
+                      <span className="text-[#86868b] mx-1.5">|</span>
                       <span className="text-[#1d1d1f]">{session.studentName}</span>
                       {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
                     </div>
