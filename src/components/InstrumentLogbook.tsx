@@ -78,7 +78,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   const [checkoutAssetId, setCheckoutAssetId] = useState('');
   const [checkoutName, setCheckoutName] = useState(currentUser.displayName);
   const [checkoutRoll, setCheckoutRoll] = useState('');
-  const [checkoutPurpose, setCheckoutPurpose] = useState('composition');
+  const [checkoutPurpose, setCheckoutPurpose] = useState('Composition');
 
   // Return state
   const [returningSessionId, setReturningSessionId] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       setShowCheckoutForm(false);
       setCheckoutAssetId('');
       setCheckoutRoll('');
-      setCheckoutPurpose('composition');
+      setCheckoutPurpose('Composition');
     } catch (err) {
       console.error('Error during checkout:', err);
     }
@@ -634,14 +634,21 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
 
               <div>
                 <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Purpose *</label>
-                <select value={checkoutPurpose} onChange={(e) => setCheckoutPurpose(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
-                  <option value="composition">Composition</option>
-                  <option value="recording">Recording</option>
-                  <option value="mixing">Mixing & Mastering</option>
-                  <option value="practice">Practice</option>
-                  <option value="other">Other</option>
-                </select>
+                <input 
+                  type="text" 
+                  list="purpose-options"
+                  value={checkoutPurpose} 
+                  onChange={(e) => setCheckoutPurpose(e.target.value)}
+                  placeholder="e.g. Composition, Practice, Recording..."
+                  required
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
+                />
+                <datalist id="purpose-options">
+                  <option value="Composition" />
+                  <option value="Recording" />
+                  <option value="Mixing & Mastering" />
+                  <option value="Practice" />
+                </datalist>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">

@@ -24,7 +24,7 @@ export interface SessionLog {
   studentName: string;
   rollNumber: string;
   assetId: string;
-  purpose: 'composition' | 'recording' | 'mixing' | 'practice' | 'other';
+  purpose: string;
   checkInTime: string;
   checkOutTime?: string;
   status: 'active' | 'completed';
