@@ -229,7 +229,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
 
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
           <p className="text-[12px] text-[#86868b] font-medium">Responsible crew</p>
-          <p className="text-[17px] font-semibold text-[#1d1d1f]">HOD</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">Members</p>
           <p className="text-[12px] text-[#86868b]">Hostel music department crew</p>
         </div>
       </div>
@@ -265,8 +265,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                   onChange={(e) => setSelectedRole(e.target.value as any)}
                   className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                 >
-                  <option value="all">All Chores</option>
-                  <option value="head">HOD Chores</option>
+                  <option value="all">Members</option>
                 </select>
               </div>
             )}
@@ -295,14 +294,8 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                           <h3 className="font-semibold text-[#1d1d1f] text-[15px] mt-2 leading-tight">{task.title}</h3>
                         </div>
                         {(isAdmin || userRole === 'junior_admin') && (
-                          <span className={`px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap ${
-                            task.role === 'head' 
-                              ? 'bg-[#0071e3]/10 text-[#0071e3]' 
-                              : task.role === 'junior' 
-                                ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]' 
-                                : 'bg-[#34c759]/10 text-[#34c759]'
-                          }`}>
-                            {task.role === 'both' ? 'Joint Duty' : 'HOD'}
+                          <span className="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap bg-[#0071e3]/10 text-[#0071e3]">
+                            Members
                           </span>
                         )}
                       </div>
@@ -393,7 +386,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                   type="text"
                   value={completedBy}
                   onChange={(e) => setCompletedBy(e.target.value)}
-                  placeholder="e.g. HOD Member"
+                  placeholder="e.g. Member name"
                   required
                   className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
@@ -475,7 +468,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                     onChange={(e) => setNewRole(e.target.value as any)}
                     className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                   >
-                    <option value="head">HOD</option>
+                    <option value="head">Members</option>
                     <option value="both">Joint Duty</option>
                   </select>
                 </div>
