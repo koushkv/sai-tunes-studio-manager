@@ -84,6 +84,10 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   const [returningSessionId, setReturningSessionId] = useState<string | null>(null);
   const [returnNotes, setReturnNotes] = useState('');
 
+  // History filtering & item detail view
+  const [historyAssetFilter, setHistoryAssetFilter] = useState<string>('all');
+  const [expandedAssetHistoryId, setExpandedAssetHistoryId] = useState<string | null>(null);
+
   // Sync assets from Firestore
   useEffect(() => {
     const assetsRef = collection(db, 'assets');
@@ -133,8 +137,12 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
 
   // Filter sessions
   const filteredSessions = useMemo(() => {
-    return sessions.filter(s => sessionFilter === 'all' || s.status === sessionFilter);
-  }, [sessions, sessionFilter]);
+    return sessions.filter(s => {
+      const matchesStatus = sessionFilter === 'all' || s.status === sessionFilter;
+      const matchesAsset = historyAssetFilter === 'all' || s.assetId === historyAssetFilter;
+      return matchesStatus && matchesAsset;
+    });
+  }, [sessions, sessionFilter, historyAssetFilter]);
 
   // Available assets for checkout (operational + not lent)
   const availableAssets = assets.filter(a => a.status === 'operational' && !a.lentTo);
@@ -411,6 +419,45 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   <p className="text-[12px] text-[#86868b] italic border-t border-[#e8e8ed] pt-2">{asset.remarks}</p>
                 )}
 
+                {/* Per-Asset Lending History Toggle */}
+                {(() => {
+                  const assetLogs = sessions.filter(s => s.assetId === asset.id);
+                  const isExpanded = expandedAssetHistoryId === asset.id;
+                  if (assetLogs.length === 0) return null;
+                  return (
+                    <div className="border-t border-[#e8e8ed] pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedAssetHistoryId(isExpanded ? null : asset.id)}
+                        className="flex items-center gap-1 text-[12px] text-[#0071e3] font-medium hover:underline cursor-pointer transition-colors"
+                      >
+                        <Clock size={12} /> {isExpanded ? 'Hide Lending Log' : `Lending Log (${assetLogs.length})`}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {assetLogs.map(log => (
+                            <div key={log.id} className="text-[11px] bg-[#f5f5f7] p-2.5 rounded-lg space-y-1 border border-[#e8e8ed]">
+                              <div className="flex justify-between items-center font-medium text-[#1d1d1f]">
+                                <span>{log.studentName} {log.rollNumber ? `(${log.rollNumber})` : ''}</span>
+                                <span className={log.status === 'active' ? 'text-[#ff9f0a]' : 'text-[#34c759]'}>
+                                  {log.status === 'active' ? 'Active' : 'Returned'}
+                                </span>
+                              </div>
+                              <div className="text-[#86868b] space-y-0.5">
+                                <div><strong className="text-[#6e6e73]">Borrowed:</strong> {formatDateTime(log.checkInTime)}</div>
+                                {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned:</strong> {formatDateTime(log.checkOutTime)}</div>}
+                                {log.purpose && <div><strong className="text-[#6e6e73]">Purpose:</strong> {log.purpose}</div>}
+                                {log.notes && <div className="italic text-[#86868b]">"{log.notes}"</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Delete confirmation */}
                 {deletingAssetId === asset.id && (
                   <div className="p-3 bg-[#ff3b30]/5 border border-[#ff3b30]/20 rounded-xl flex items-center justify-between">
@@ -427,56 +474,93 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         </div>
       )}
 
-      {/* Checkout/Return History */}
+      {/* Lending & Return History */}
       {sessions.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-              Checkout history
-            </h3>
-            <div className="flex items-center gap-1.5">
-              {(['active', 'completed', 'all'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setSessionFilter(f)}
-                  className={`px-3 py-1.5 rounded-full text-[13px] font-medium capitalize transition-colors cursor-pointer ${
-                    sessionFilter === f ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
+            <div>
+              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
+                Lending & Return Logbook History
+              </h3>
+              <p className="text-[12px] text-[#86868b] mt-0.5">Track borrowing dates, active checkouts, and return timestamps</p>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+              {/* Asset filter select */}
+              <select
+                value={historyAssetFilter}
+                onChange={(e) => setHistoryAssetFilter(e.target.value)}
+                className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-1.5 text-[12px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
+              >
+                <option value="all">All Instruments</option>
+                {assets.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+
+              {/* Status filter */}
+              <div className="flex items-center gap-1">
+                {(['active', 'completed', 'all'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setSessionFilter(f)}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-medium capitalize transition-colors cursor-pointer ${
+                      sessionFilter === f ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
+                    }`}
+                  >
+                    {f === 'active' ? 'Active' : f === 'completed' ? 'Returned' : 'All'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {filteredSessions.length === 0 ? (
-              <p className="text-center py-8 text-[#86868b] text-[13px]">No {sessionFilter} sessions</p>
+              <p className="text-center py-8 text-[#86868b] text-[13px]">No matching borrowing history found.</p>
             ) : (
               filteredSessions.map(session => (
-                <div key={session.id} className="p-4 bg-[#f5f5f7] rounded-xl text-[13px] space-y-2">
-                  <div className="flex justify-between items-start gap-2">
+                <div key={session.id} className="p-4 bg-[#f5f5f7] rounded-xl text-[13px] space-y-2 border border-[#e8e8ed]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                     <div>
-                      <span className="font-semibold text-[#1d1d1f]">{session.assetName || session.assetId}</span>
-                      <span className="text-[#86868b] mx-1.5">|</span>
-                      <span className="text-[#1d1d1f]">{session.studentName}</span>
+                      <span className="font-semibold text-[#1d1d1f] text-[14px]">{session.assetName || session.assetId}</span>
+                      <span className="text-[#86868b] mx-2">|</span>
+                      <span className="text-[#1d1d1f] font-medium">{session.studentName}</span>
                       {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 self-start sm:self-auto ${
                       session.status === 'active'
-                        ? 'bg-[#0071e3]/10 text-[#0071e3]'
+                        ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]'
                         : 'bg-[#34c759]/10 text-[#34c759]'
                     }`}>
-                      {session.status === 'active' ? 'Active' : 'Completed'}
+                      {session.status === 'active' ? 'Currently Lent' : 'Returned'}
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center text-[12px] text-[#86868b]">
-                    <span className="capitalize">{session.purpose}</span>
-                    <span>{formatDateTime(session.checkInTime)}</span>
+                  {/* Dates: Borrowed & Returned */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] pt-1 text-[#6e6e73] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
+                    <div>
+                      <span className="font-semibold text-[#1d1d1f]">Borrowed Date: </span>
+                      <span>{formatDateTime(session.checkInTime)}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#1d1d1f]">Returned Date: </span>
+                      <span>{session.checkOutTime ? formatDateTime(session.checkOutTime) : <em className="text-[#ff9f0a] not-italic">Still out with student</em>}</span>
+                    </div>
                   </div>
 
-                  {session.notes && <p className="text-[12px] text-[#86868b] italic">"{session.notes}"</p>}
+                  {session.purpose && (
+                    <p className="text-[12px] text-[#6e6e73]">
+                      <span className="font-semibold text-[#1d1d1f]">Purpose: </span>
+                      <span>{session.purpose}</span>
+                    </p>
+                  )}
+
+                  {session.notes && (
+                    <p className="text-[12px] text-[#86868b] italic bg-white/70 p-2 rounded-lg border border-[#e8e8ed]">
+                      "{session.notes}"
+                    </p>
+                  )}
 
                   {/* Return button for active sessions */}
                   {session.status === 'active' && (
