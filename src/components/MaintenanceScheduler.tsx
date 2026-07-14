@@ -229,7 +229,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
 
         <div className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-1">
           <p className="text-[12px] text-[#86868b] font-medium">Responsible crew</p>
-          <p className="text-[17px] font-semibold text-[#1d1d1f]">Members</p>
+          <p className="text-[17px] font-semibold text-[#1d1d1f]">Students</p>
           <p className="text-[12px] text-[#86868b]">Hostel music department crew</p>
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                   onChange={(e) => setSelectedRole(e.target.value as any)}
                   className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                 >
-                  <option value="all">Members</option>
+                  <option value="all">Students</option>
                 </select>
               </div>
             )}
@@ -295,7 +295,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                         </div>
                         {(isAdmin || userRole === 'junior_admin') && (
                           <span className="px-2.5 py-1 text-[11px] font-medium rounded-full whitespace-nowrap bg-[#0071e3]/10 text-[#0071e3]">
-                            Members
+                            Students
                           </span>
                         )}
                       </div>
@@ -381,12 +381,12 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
 
             <form onSubmit={handleCompleteChoreSubmit} className="p-6 space-y-5 overflow-y-auto">
               <div>
-                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Assigned member</label>
+                <label className="block text-[13px] text-[#6e6e73] font-medium mb-1.5">Assigned student</label>
                 <input 
                   type="text"
                   value={completedBy}
                   onChange={(e) => setCompletedBy(e.target.value)}
-                  placeholder="e.g. Member name"
+                  placeholder="e.g. Student name"
                   required
                   className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
                 />
@@ -468,7 +468,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
                     onChange={(e) => setNewRole(e.target.value as any)}
                     className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
                   >
-                    <option value="head">Members</option>
+                    <option value="head">Students</option>
                     <option value="both">Joint Duty</option>
                   </select>
                 </div>

@@ -216,7 +216,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
     if (!asset) return;
 
     const now = new Date().toISOString();
-    const lenderUsername = currentUser.displayName || currentUser.email || 'Member';
+    const lenderUsername = currentUser.displayName || currentUser.email || 'Student';
 
     try {
       await addDoc(collection(db, 'instrument_logs'), {
@@ -449,7 +449,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                                 </span>
                               </div>
                               <div className="text-[#86868b] space-y-0.5">
-                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Member):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || currentUser.displayName || currentUser.email}</span></div>
+                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Student):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || currentUser.displayName || currentUser.email}</span></div>
                                 <div><strong className="text-[#6e6e73]">Borrowed Date:</strong> {formatDateTime(log.checkInTime)}</div>
                                 {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned Date:</strong> {formatDateTime(log.checkOutTime)}</div>}
                                 {log.purpose && <div><strong className="text-[#6e6e73]">Purpose:</strong> {log.purpose}</div>}
@@ -542,7 +542,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   {/* Issuer & Borrower Details */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
                     <div>
-                      <span className="font-semibold text-[#1d1d1f]">Issued / Lent by (Member): </span>
+                      <span className="font-semibold text-[#1d1d1f]">Issued / Lent by (Student): </span>
                       <span className="text-[#0071e3] font-medium">{session.lentBy || currentUser.displayName || currentUser.email}</span>
                     </div>
                     <div>
@@ -720,7 +720,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Issued / Lent by (Logged-in Member)</label>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Issued / Lent by (Logged-in Student)</label>
                 <input 
                   type="text" 
                   value={currentUser.displayName || currentUser.email} 

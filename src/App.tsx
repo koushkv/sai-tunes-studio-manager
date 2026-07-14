@@ -75,7 +75,7 @@ export default function App() {
       if (firebaseUser) {
         setUser({
           email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Studio Member',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Studio Student',
           photoURL: firebaseUser.photoURL || null
         });
         setAuthError('');
@@ -168,7 +168,7 @@ export default function App() {
     switch (role) {
       case 'admin': return 'Admin';
       case 'junior_admin': return 'Jr. Admin';
-      case 'member': return 'Member';
+      case 'member': return 'Student';
       default: return 'Guest';
     }
   };
@@ -316,7 +316,7 @@ export default function App() {
               </button>
 
               <p className="text-[13px] text-[#86868b]">
-                Only authorized members can access this system.
+                Only authorized students can access this system.
               </p>
             </div>
           </div>

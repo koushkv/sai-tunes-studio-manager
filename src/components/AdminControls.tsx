@@ -8,7 +8,7 @@ const MASTER_EMAIL = 'koushikv@sssihl.edu.in';
 const ROLE_CONFIG: Record<UserRole, { label: string; bg: string; text: string }> = {
   admin:        { label: 'Admin',        bg: 'bg-[#0071e3]/10', text: 'text-[#0071e3]' },
   junior_admin: { label: 'Junior admin', bg: 'bg-[#ff9f0a]/10', text: 'text-[#ff9f0a]' },
-  member:       { label: 'Member',       bg: 'bg-[#34c759]/10', text: 'text-[#34c759]' },
+  member:       { label: 'Student',      bg: 'bg-[#34c759]/10', text: 'text-[#34c759]' },
 };
 
 interface AdminControlsProps {
@@ -205,7 +205,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
               >
                 <option value="admin">Admin</option>
                 <option value="junior_admin">Junior admin</option>
-                <option value="member">Member</option>
+                <option value="member">Student</option>
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-3 text-[#86868b] pointer-events-none" />
             </div>
@@ -295,7 +295,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
                           >
                             <option value="admin">Admin</option>
                             <option value="junior_admin">Junior admin</option>
-                            <option value="member">Member</option>
+                            <option value="member">Student</option>
                           </select>
                           <button
                             onClick={() => handleUpdateRole(user.email, editRole)}
