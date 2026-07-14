@@ -210,18 +210,19 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   // === Checkout ===
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkoutAssetId || !checkoutName.trim() || !checkoutRoll.trim()) return;
+    if (!checkoutAssetId || !checkoutName.trim()) return;
 
     const asset = assets.find(a => a.id === checkoutAssetId);
     if (!asset) return;
 
     const now = new Date().toISOString();
+    const lenderUsername = currentUser.displayName || currentUser.email || 'Member';
 
     try {
       await addDoc(collection(db, 'instrument_logs'), {
         studentName: checkoutName.trim(),
         rollNumber: checkoutRoll.trim(),
-        lentBy: checkoutLenderName.trim() || currentUser.displayName || 'Sai Tunes Member',
+        lentBy: lenderUsername,
         assetId: checkoutAssetId,
         assetName: asset.name,
         purpose: checkoutPurpose.trim(),
@@ -448,7 +449,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                                 </span>
                               </div>
                               <div className="text-[#86868b] space-y-0.5">
-                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Member):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || 'Sai Tunes Member'}</span></div>
+                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Member):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || currentUser.displayName || currentUser.email}</span></div>
                                 <div><strong className="text-[#6e6e73]">Borrowed Date:</strong> {formatDateTime(log.checkInTime)}</div>
                                 {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned Date:</strong> {formatDateTime(log.checkOutTime)}</div>}
                                 {log.purpose && <div><strong className="text-[#6e6e73]">Purpose:</strong> {log.purpose}</div>}
@@ -542,7 +543,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
                     <div>
                       <span className="font-semibold text-[#1d1d1f]">Issued / Lent by (Member): </span>
-                      <span className="text-[#0071e3] font-medium">{session.lentBy || 'Sai Tunes Member'}</span>
+                      <span className="text-[#0071e3] font-medium">{session.lentBy || currentUser.displayName || currentUser.email}</span>
                     </div>
                     <div>
                       <span className="font-semibold text-[#1d1d1f]">Borrowed by (Student): </span>
@@ -719,21 +720,36 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Lent by (Sai Tunes Member) *</label>
-                <input type="text" value={checkoutLenderName} onChange={(e) => setCheckoutLenderName(e.target.value)} required placeholder="Name of Sai Tunes member issuing item"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Issued / Lent by (Logged-in Member)</label>
+                <input 
+                  type="text" 
+                  value={currentUser.displayName || currentUser.email} 
+                  disabled 
+                  className="w-full px-3 py-2.5 bg-[#e8e8ed] border border-[#d2d2d7] rounded-lg text-[14px] text-[#6e6e73] cursor-not-allowed select-none font-medium" 
+                />
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Borrowed by (Student Name) *</label>
-                <input type="text" value={checkoutName} onChange={(e) => setCheckoutName(e.target.value)} required placeholder="Name of student borrowing item"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Whom are you giving it to? (Borrower Name) *</label>
+                <input 
+                  type="text" 
+                  value={checkoutName} 
+                  onChange={(e) => setCheckoutName(e.target.value)} 
+                  required 
+                  placeholder="Enter the borrower's name"
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
+                />
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Roll number *</label>
-                <input type="text" value={checkoutRoll} onChange={(e) => setCheckoutRoll(e.target.value)} required placeholder="e.g. 20BCSE01"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Roll number (Optional)</label>
+                <input 
+                  type="text" 
+                  value={checkoutRoll} 
+                  onChange={(e) => setCheckoutRoll(e.target.value)} 
+                  placeholder="e.g. 20BCSE01 (Optional)"
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
+                />
               </div>
 
               <div>
