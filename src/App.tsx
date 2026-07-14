@@ -18,7 +18,7 @@ import InstrumentLogbook from './components/InstrumentLogbook';
 import MaintenanceScheduler from './components/MaintenanceScheduler';
 import ProjectsTracker from './components/ProjectsTracker';
 import AdminControls from './components/AdminControls';
-import MusicReleases from './components/MusicReleases';
+import ProjectsPortfolio from './components/ProjectsPortfolio';
 
 import { AllowedUser, UserRole } from './types';
 
@@ -31,7 +31,7 @@ interface CustomUser {
 const MASTER_ADMIN_EMAIL = 'koushikv@sssihl.edu.in';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'instruments' | 'projects' | 'maintenance' | 'releases'>('instruments');
+  const [activeTab, setActiveTab] = useState<'instruments' | 'projects' | 'maintenance' | 'portfolio'>('instruments');
   
   const [user, setUser] = useState<CustomUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -177,7 +177,7 @@ export default function App() {
     { id: 'instruments', label: 'Inventory' },
     { id: 'projects', label: 'Projects' },
     { id: 'maintenance', label: 'Maintenance' },
-    { id: 'releases', label: 'Releases' },
+    { id: 'portfolio', label: 'Portfolio' },
   ];
 
   return (
@@ -384,8 +384,8 @@ export default function App() {
                 {activeTab === 'maintenance' && (
                   <MaintenanceScheduler currentUser={user} isAdmin={isAdmin} userRole={userRole} />
                 )}
-                {activeTab === 'releases' && (
-                  <MusicReleases currentUser={user} isAdmin={isAdmin} userRole={userRole} />
+                {activeTab === 'portfolio' && (
+                  <ProjectsPortfolio currentUser={user} />
                 )}
               </div>
             )}
