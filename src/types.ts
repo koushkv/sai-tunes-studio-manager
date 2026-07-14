@@ -23,6 +23,7 @@ export interface SessionLog {
   id: string;
   studentName: string;
   rollNumber: string;
+  lentBy?: string;
   assetId: string;
   purpose: string;
   checkInTime: string;

@@ -76,7 +76,8 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   // Checkout form
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
   const [checkoutAssetId, setCheckoutAssetId] = useState('');
-  const [checkoutName, setCheckoutName] = useState(currentUser.displayName);
+  const [checkoutLenderName, setCheckoutLenderName] = useState(currentUser.displayName || currentUser.email);
+  const [checkoutName, setCheckoutName] = useState('');
   const [checkoutRoll, setCheckoutRoll] = useState('');
   const [checkoutPurpose, setCheckoutPurpose] = useState('Composition');
 
@@ -220,9 +221,10 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       await addDoc(collection(db, 'instrument_logs'), {
         studentName: checkoutName.trim(),
         rollNumber: checkoutRoll.trim(),
+        lentBy: checkoutLenderName.trim() || currentUser.displayName || 'Sai Tunes Member',
         assetId: checkoutAssetId,
         assetName: asset.name,
-        purpose: checkoutPurpose,
+        purpose: checkoutPurpose.trim(),
         checkInTime: now,
         status: 'active',
       });
@@ -235,6 +237,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       setShowCheckoutForm(false);
       setCheckoutAssetId('');
       setCheckoutRoll('');
+      setCheckoutName('');
       setCheckoutPurpose('Composition');
     } catch (err) {
       console.error('Error during checkout:', err);
@@ -439,14 +442,15 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                           {assetLogs.map(log => (
                             <div key={log.id} className="text-[11px] bg-[#f5f5f7] p-2.5 rounded-lg space-y-1 border border-[#e8e8ed]">
                               <div className="flex justify-between items-center font-medium text-[#1d1d1f]">
-                                <span>{log.studentName} {log.rollNumber ? `(${log.rollNumber})` : ''}</span>
+                                <span>Lent to: {log.studentName} {log.rollNumber ? `(${log.rollNumber})` : ''}</span>
                                 <span className={log.status === 'active' ? 'text-[#ff9f0a]' : 'text-[#34c759]'}>
                                   {log.status === 'active' ? 'Active' : 'Returned'}
                                 </span>
                               </div>
                               <div className="text-[#86868b] space-y-0.5">
-                                <div><strong className="text-[#6e6e73]">Borrowed:</strong> {formatDateTime(log.checkInTime)}</div>
-                                {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned:</strong> {formatDateTime(log.checkOutTime)}</div>}
+                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Member):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || 'Sai Tunes Member'}</span></div>
+                                <div><strong className="text-[#6e6e73]">Borrowed Date:</strong> {formatDateTime(log.checkInTime)}</div>
+                                {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned Date:</strong> {formatDateTime(log.checkOutTime)}</div>}
                                 {log.purpose && <div><strong className="text-[#6e6e73]">Purpose:</strong> {log.purpose}</div>}
                                 {log.notes && <div className="italic text-[#86868b]">"{log.notes}"</div>}
                               </div>
@@ -524,9 +528,6 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                     <div>
                       <span className="font-semibold text-[#1d1d1f] text-[14px]">{session.assetName || session.assetId}</span>
-                      <span className="text-[#86868b] mx-2">|</span>
-                      <span className="text-[#1d1d1f] font-medium">{session.studentName}</span>
-                      {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 self-start sm:self-auto ${
                       session.status === 'active'
@@ -537,15 +538,28 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                     </span>
                   </div>
 
+                  {/* Issuer & Borrower Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
+                    <div>
+                      <span className="font-semibold text-[#1d1d1f]">Issued / Lent by (Member): </span>
+                      <span className="text-[#0071e3] font-medium">{session.lentBy || 'Sai Tunes Member'}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#1d1d1f]">Borrowed by (Student): </span>
+                      <span className="text-[#1d1d1f] font-medium">{session.studentName}</span>
+                      {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
+                    </div>
+                  </div>
+
                   {/* Dates: Borrowed & Returned */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] pt-1 text-[#6e6e73] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] text-[#6e6e73] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
                     <div>
                       <span className="font-semibold text-[#1d1d1f]">Borrowed Date: </span>
                       <span>{formatDateTime(session.checkInTime)}</span>
                     </div>
                     <div>
                       <span className="font-semibold text-[#1d1d1f]">Returned Date: </span>
-                      <span>{session.checkOutTime ? formatDateTime(session.checkOutTime) : <em className="text-[#ff9f0a] not-italic">Still out with student</em>}</span>
+                      <span>{session.checkOutTime ? formatDateTime(session.checkOutTime) : <em className="text-[#ff9f0a] not-italic font-medium">Still out with borrower</em>}</span>
                     </div>
                   </div>
 
@@ -705,8 +719,14 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
               </div>
 
               <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Your name *</label>
-                <input type="text" value={checkoutName} onChange={(e) => setCheckoutName(e.target.value)} required
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Lent by (Sai Tunes Member) *</label>
+                <input type="text" value={checkoutLenderName} onChange={(e) => setCheckoutLenderName(e.target.value)} required placeholder="Name of Sai Tunes member issuing item"
+                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Borrowed by (Student Name) *</label>
+                <input type="text" value={checkoutName} onChange={(e) => setCheckoutName(e.target.value)} required placeholder="Name of student borrowing item"
                   className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
               </div>
 
