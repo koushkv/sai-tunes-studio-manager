@@ -50,6 +50,8 @@ export interface MaintenanceTask {
   description: string;
   frequency: 'daily' | 'weekly' | 'monthly';
   role: 'head' | 'junior' | 'both';
+  /** Lowercase emails of the students responsible for this routine. */
+  assignedTo?: string[];
   lastDone?: string;
   history: {
     date: string;
@@ -118,7 +120,7 @@ export interface MusicProject {
   updatedAt: string;
   createdBy: string;
   createdAt: string;
-  /** Lowercase email of the author — drives "only the owner sees it" visibility. */
+  /** Lowercase email of the author. Drives "only the owner sees it" visibility. */
   createdByEmail: string;
   approval: ProjectApproval;
   reviewedBy?: string;
@@ -138,9 +140,18 @@ export type NotificationType =
   | 'project_updated'
   | 'project_approved'
   | 'project_rejected'
+  | 'project_assigned'
+  | 'task_assigned'
   | 'asset_checked_out'
   | 'asset_returned'
   | 'maintenance_logged';
+
+/**
+ * 'managers' fans out to every admin and junior admin (the activity feed).
+ * 'recipients' targets named people, which is how students hear that they
+ * were assigned to a project or a routine.
+ */
+export type NotificationAudience = 'managers' | 'recipients';
 
 export interface AppNotification {
   id: string;
@@ -152,7 +163,10 @@ export interface AppNotification {
   entityType: 'project' | 'asset' | 'maintenance';
   entityId: string;
   createdAt: string;
-  /** Emails of admins who have already seen this — read state is per-admin. */
+  audience: NotificationAudience;
+  /** Lowercase emails this is addressed to, when audience is 'recipients'. */
+  recipients: string[];
+  /** Emails that have already seen this. Read state is per person. */
   readBy: string[];
 }
 

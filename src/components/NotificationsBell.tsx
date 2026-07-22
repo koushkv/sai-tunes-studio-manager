@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { db, collection, onSnapshot, query, orderBy, limit } from '../lib/firebase';
+import { db, collection, onSnapshot, query, where } from '../lib/firebase';
 import { Bell, CheckCheck } from 'lucide-react';
 import type { AppNotification } from '../types';
 import { NOTIFICATION_META, markNotificationRead } from '../lib/notifications';
@@ -7,42 +7,84 @@ import { formatRelative } from '../lib/format';
 
 interface NotificationsBellProps {
   currentUserEmail: string;
-  /** Jumps the app to the Projects tab when a project notification is clicked. */
+  /** Admins and junior admins also receive the studio-wide activity feed. */
+  canManage: boolean;
+  /** Jumps the app to the relevant tab when a notification is clicked. */
   onOpenProjects: () => void;
+  onOpenMaintenance: () => void;
 }
 
-/** Admin-only activity feed: everything students do across the studio. */
-export default function NotificationsBell({ currentUserEmail, onOpenProjects }: NotificationsBellProps) {
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+function mapNotification(id: string, data: any): AppNotification {
+  return {
+    id,
+    type: data.type,
+    title: data.title || '',
+    body: data.body || '',
+    actorName: data.actorName || '',
+    actorEmail: data.actorEmail || '',
+    entityType: data.entityType,
+    entityId: data.entityId || '',
+    createdAt: data.createdAt || '',
+    audience: data.audience || 'managers',
+    recipients: data.recipients || [],
+    readBy: data.readBy || [],
+  };
+}
+
+/**
+ * Everyone gets a bell. Students see notifications addressed to them;
+ * managers additionally see the studio-wide activity feed.
+ */
+export default function NotificationsBell({
+  currentUserEmail,
+  canManage,
+  onOpenProjects,
+  onOpenMaintenance,
+}: NotificationsBellProps) {
+  const [feedItems, setFeedItems] = useState<AppNotification[]>([]);
+  const [mineItems, setMineItems] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Two separate listeners because each query has to stand on its own
+  // against the security rules.
   useEffect(() => {
-    // Newest 50 only — the feed is glanceable recent activity, not an archive.
-    return onSnapshot(
-      query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50)),
-      (snapshot) => {
-        const list: AppNotification[] = [];
-        snapshot.forEach((d) => {
-          const data = d.data();
-          list.push({
-            id: d.id,
-            type: data.type,
-            title: data.title || '',
-            body: data.body || '',
-            actorName: data.actorName || '',
-            actorEmail: data.actorEmail || '',
-            entityType: data.entityType,
-            entityId: data.entityId || '',
-            createdAt: data.createdAt || '',
-            readBy: data.readBy || [],
-          });
-        });
-        setNotifications(list);
-      },
-      (err) => console.error('Notifications subscription error:', err),
+    const ref = collection(db, 'notifications');
+    const onError = (err: unknown) => console.error('Notifications subscription error:', err);
+
+    const collect = (snap: any) => {
+      const list: AppNotification[] = [];
+      snap.forEach((d: any) => list.push(mapNotification(d.id, d.data())));
+      return list;
+    };
+
+    const unsubMine = onSnapshot(
+      query(ref, where('recipients', 'array-contains', currentUserEmail)),
+      (snap) => setMineItems(collect(snap)),
+      onError,
     );
-  }, []);
+
+    if (!canManage) {
+      setFeedItems([]);
+      return () => unsubMine();
+    }
+
+    const unsubFeed = onSnapshot(
+      query(ref, where('audience', '==', 'managers')),
+      (snap) => setFeedItems(collect(snap)),
+      onError,
+    );
+    return () => { unsubMine(); unsubFeed(); };
+  }, [currentUserEmail, canManage]);
+
+  // Newest 50 only. The bell is glanceable recent activity, not an archive.
+  const notifications = useMemo(() => {
+    const byId = new Map<string, AppNotification>();
+    [...feedItems, ...mineItems].forEach(n => byId.set(n.id, n));
+    return [...byId.values()]
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      .slice(0, 50);
+  }, [feedItems, mineItems]);
 
   const unread = useMemo(
     () => notifications.filter(n => !n.readBy.includes(currentUserEmail)),
@@ -67,6 +109,9 @@ export default function NotificationsBell({ currentUserEmail, onOpenProjects }: 
     markNotificationRead(n.id, currentUserEmail);
     if (n.entityType === 'project') {
       onOpenProjects();
+      setOpen(false);
+    } else if (n.entityType === 'maintenance') {
+      onOpenMaintenance();
       setOpen(false);
     }
   };
@@ -117,7 +162,7 @@ export default function NotificationsBell({ currentUserEmail, onOpenProjects }: 
           <div className="max-h-[26rem] overflow-y-auto divide-y divide-[#e8e8ed]">
             {notifications.length === 0 ? (
               <p className="px-4 py-10 text-center text-[13px] text-[#86868b]">
-                No activity yet. Student actions will show up here.
+                Nothing yet. Updates will show up here.
               </p>
             ) : (
               notifications.map(n => {

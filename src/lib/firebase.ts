@@ -32,7 +32,7 @@ import {
 } from 'firebase/firestore';
 
 // Values are read from a local file rather than env vars because AI Studio
-// generates this config. Firebase web keys are public identifiers by design —
+// generates this config. Firebase web keys are public identifiers by design;
 // access is enforced by firestore.rules, not by hiding these values.
 import rawConfig from '../../firebase-applet-config.json';
 
@@ -82,7 +82,7 @@ function connectFirestore(): Firestore {
       ? initializeFirestore(app, settings, databaseId)
       : initializeFirestore(app, settings);
   } catch {
-    // Already initialized (HMR) — return the existing instance.
+    // Already initialized (HMR), so return the existing instance.
     return databaseId ? getFirestore(app, databaseId) : getFirestore(app);
   }
 }
@@ -98,7 +98,7 @@ setPersistence(auth, browserLocalPersistence).catch((err) => {
 
 const googleProvider = new GoogleAuthProvider();
 // Students often have both a personal and an institute Google account, and only
-// one of them is whitelisted — always let them choose.
+// one of them is whitelisted, so always let them choose.
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const FIREBASE_PROJECT_ID = rawConfig.projectId;

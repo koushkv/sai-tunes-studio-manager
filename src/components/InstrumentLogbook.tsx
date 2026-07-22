@@ -25,7 +25,7 @@ import { Asset, AssetStatus, UserRole } from '../types';
 import { ASSET_STATUS } from '../lib/stages';
 import { formatDateTime } from '../lib/format';
 import { firestoreErrorMessage } from '../lib/errors';
-import { notify } from '../lib/notifications';
+import { notifyManagers } from '../lib/notifications';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import {
@@ -192,7 +192,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   const historyAssetOptions = useMemo(() => {
     const byId = new Map<string, string>();
     // Several assets share a brand name, so disambiguate with the model.
-    assets.forEach(a => byId.set(a.id, a.model ? `${a.name} — ${a.model}` : a.name));
+    assets.forEach(a => byId.set(a.id, a.model ? `${a.name} (${a.model})` : a.name));
     sessions.forEach(s => { if (!byId.has(s.assetId)) byId.set(s.assetId, `${s.assetName || s.assetId} (removed)`); });
     return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [assets, sessions]);
@@ -319,7 +319,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         status: 'active',
       });
 
-      await notify({
+      await notifyManagers({
         type: 'asset_checked_out',
         title: `${asset.name} checked out to ${checkoutName.trim()}`,
         body: checkoutPurpose.trim(),
@@ -359,12 +359,12 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         notes: returnNotes.trim() || 'Returned in good condition',
       });
 
-      // The asset may have been deleted while it was out — only clear it if it still exists.
+      // The asset may have been deleted while it was out, so only clear it if it still exists.
       if (assets.some(a => a.id === session.assetId)) {
         await updateDoc(doc(db, 'assets', session.assetId), { lentTo: '', lentAt: '' });
       }
 
-      await notify({
+      await notifyManagers({
         type: 'asset_returned',
         title: `${session.assetName} returned by ${session.studentName}`,
         body: returnNotes.trim(),
@@ -415,7 +415,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         }
       />
 
-      {/* Stats — one compact strip so the list starts higher up the page */}
+      {/* Stats: one compact strip so the list starts higher up the page */}
       {assets.length > 0 && (
         <div className={`${cardClass} grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[#e8e8ed]`}>
           {[
@@ -502,7 +502,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       ) : (
         <div className={`${cardClass} overflow-hidden`}>
 
-          {/* Column headers — desktop only */}
+          {/* Column headers, desktop only */}
           <div
             className="hidden md:grid md:grid-cols-[minmax(0,2.2fr)_1fr_1.1fr_1fr_1.5fr_auto] gap-3 items-center
                        px-4 py-2.5 bg-[#f5f5f7] border-b border-[#e8e8ed]
@@ -545,7 +545,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                         on desktop `contents` promotes them into their own columns. */}
                     <div className="flex flex-wrap items-center gap-2 md:contents">
                       <span className="text-[12px] text-[#6e6e73] capitalize truncate" title={asset.category}>
-                        {asset.category || '—'}
+                        {asset.category || '-'}
                       </span>
 
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium w-fit ${statusStyle.bg} ${statusStyle.text}`}>
@@ -554,7 +554,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                       </span>
 
                       <span className="text-[12px] text-[#86868b] truncate" title={asset.location}>
-                        {asset.location || '—'}
+                        {asset.location || '-'}
                       </span>
                     </div>
 
@@ -672,7 +672,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                                   </span>
                                 </div>
                                 <dl className="text-[#86868b] space-y-0.5">
-                                  <div><dt className="inline font-medium text-[#6e6e73]">Issued by:</dt>{' '}<dd className="inline text-[#0071e3] font-medium">{log.lentBy || '—'}</dd></div>
+                                  <div><dt className="inline font-medium text-[#6e6e73]">Issued by:</dt>{' '}<dd className="inline text-[#0071e3] font-medium">{log.lentBy || '-'}</dd></div>
                                   <div><dt className="inline font-medium text-[#6e6e73]">Borrowed:</dt>{' '}<dd className="inline">{formatDateTime(log.checkInTime)}</dd></div>
                                   {log.checkOutTime && (
                                     <div><dt className="inline font-medium text-[#6e6e73]">Returned:</dt>{' '}<dd className="inline">{formatDateTime(log.checkOutTime)}</dd></div>
@@ -758,7 +758,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] bg-white/70 p-3 rounded-lg border border-[#e8e8ed]">
                     <div>
                       <dt className="text-[#86868b]">Issued by</dt>
-                      <dd className="text-[#0071e3] font-medium break-words">{session.lentBy || '—'}</dd>
+                      <dd className="text-[#0071e3] font-medium break-words">{session.lentBy || '-'}</dd>
                     </div>
                     <div>
                       <dt className="text-[#86868b]">Borrowed by</dt>
@@ -934,7 +934,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
             >
               <option value="">Choose an item…</option>
               {availableAssets.map(a => (
-                <option key={a.id} value={a.id}>{a.name}{a.category ? ` — ${a.category}` : ''}</option>
+                <option key={a.id} value={a.id}>{a.name}{a.category ? ` (${a.category})` : ''}</option>
               ))}
             </select>
           </div>

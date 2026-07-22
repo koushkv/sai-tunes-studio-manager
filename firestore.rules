@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sai Tunes Studio Manager — Firestore security rules.
+// Sai Tunes Studio Manager, Firestore security rules.
 //
 // Access is driven by the `allowed_users` collection, whose document IDs are
 // lowercase email addresses (e.g. allowed_users/student@sssihl.edu.in).
@@ -90,14 +90,14 @@ service cloud.firestore {
                                     || authorOf(resource.data) == callerEmail()));
 
       // Managers publish directly. Students may only submit as 'pending',
-      // and only under their own name — nobody can self-approve.
+      // and only under their own name, nobody can self-approve.
       allow create: if isManager()
                     || (allowed()
                         && approvalOf(request.resource.data) == 'pending'
                         && authorOf(request.resource.data) == callerEmail());
 
       allow update: if isManager()
-                    // Author revising their own submission — stays pending,
+                    // Author revising their own submission, stays pending,
                     // and editing an approved project sends it back to review.
                     || (allowed()
                         && authorOf(resource.data) == callerEmail()
@@ -117,12 +117,18 @@ service cloud.firestore {
                         && approvalOf(resource.data) != 'approved');
     }
 
-    // Admin activity feed. Students generate entries by acting in the app but
-    // never read them; managers read and mark them as seen.
+    // Notifications are either broadcast to managers (the studio activity
+    // feed) or addressed to named people (assignments and review outcomes).
     match /notifications/{notificationId} {
-      allow read: if isManager();
+      allow read: if (resource.data.get('audience', 'managers') == 'managers' && isManager())
+                  || (allowed() && callerEmail() in resource.data.get('recipients', []));
+
+      // Anyone whitelisted generates notifications by acting in the app, but
+      // may not pre-mark one as already read.
       allow create: if allowed() && request.resource.data.readBy.size() == 0;
-      allow update: if isManager() && onlyChanges(['readBy']);
+
+      // Marking as read is the only permitted mutation.
+      allow update: if allowed() && onlyChanges(['readBy']);
       allow delete: if isManager();
     }
 

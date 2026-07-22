@@ -358,7 +358,7 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
           </p>
           {userToRemove?.email === currentUserEmail.toLowerCase() && (
             <p className="text-[13px] text-[#a86500] bg-[#ff9f0a]/8 border border-[#ff9f0a]/20 rounded-xl p-3 leading-relaxed">
-              This is your own account — you will lose access immediately.
+              This is your own account. You will lose access immediately.
             </p>
           )}
           <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">

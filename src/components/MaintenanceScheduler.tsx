@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from '../lib/firebase';
-import { Plus, Clock, CheckCircle2, User, Trash2, ClipboardList, AlertCircle } from 'lucide-react';
-import { MaintenanceTask, UserRole } from '../types';
-import { formatDate, formatDateTime } from '../lib/format';
+import { Plus, Clock, CheckCircle2, User, Trash2, ClipboardList, AlertCircle, Users } from 'lucide-react';
+import { MaintenanceTask, UserRole, AllowedUser } from '../types';
+import { formatDate, formatDateTime, nameFromEmail } from '../lib/format';
 import { firestoreErrorMessage } from '../lib/errors';
-import { notify } from '../lib/notifications';
+import { notifyManagers, notifyPeople } from '../lib/notifications';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import {
@@ -67,6 +67,8 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newFrequency, setNewFrequency] = useState<Frequency>('daily');
+  const [newAssignees, setNewAssignees] = useState<string[]>([]);
+  const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
 
   // Delete confirmation
   const [taskToDelete, setTaskToDelete] = useState<MaintenanceTask | null>(null);
@@ -76,7 +78,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       const fetched: MaintenanceTask[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as MaintenanceTask;
-        fetched.push({ ...data, id: data.id || docSnap.id, history: data.history || [] });
+        fetched.push({ ...data, id: data.id || docSnap.id, history: data.history || [], assignedTo: data.assignedTo || [] });
       });
       fetched.sort((a, b) => a.title.localeCompare(b.title));
       setTasks(fetched);
@@ -87,6 +89,25 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       setLoading(false);
     });
   }, [toast]);
+
+  useEffect(() => {
+    return onSnapshot(collection(db, 'allowed_users'), (snapshot) => {
+      const list: AllowedUser[] = [];
+      snapshot.forEach((d) => {
+        const data = d.data();
+        list.push({
+          id: d.id,
+          email: (data.email || d.id).toLowerCase(),
+          name: data.name || '',
+          role: data.role || 'member',
+          addedBy: data.addedBy || '',
+          addedAt: data.addedAt || '',
+        });
+      });
+      list.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
+      setAllowedUsers(list);
+    }, (err) => console.error('Firestore allowed_users fetch error:', err));
+  }, []);
 
   useEffect(() => {
     if (currentUser?.displayName) setCompletedBy(currentUser.displayName);
@@ -100,7 +121,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
     ];
     await updateDoc(doc(db, 'maintenance_tasks', task.id), { lastDone: now, history });
 
-    await notify({
+    await notifyManagers({
       type: 'maintenance_logged',
       title: `${task.title} marked complete`,
       body: remarks,
@@ -163,6 +184,7 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       description: newDescription.trim(),
       frequency: newFrequency,
       role: 'both',
+      assignedTo: newAssignees,
       lastDone: '',
       history: [],
     };
@@ -170,9 +192,21 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
     setBusy(true);
     try {
       await setDoc(doc(db, 'maintenance_tasks', uniqueId), newTask);
-      toast.success(`Created “${newTask.title}”.`);
+
+      await notifyPeople(newAssignees, {
+        type: 'task_assigned',
+        title: `You were assigned "${newTask.title}"`,
+        body: `${newFrequency} routine. ${newTask.description}`,
+        actorName: currentUser?.displayName || currentUser?.email || 'Admin',
+        actorEmail: currentUser?.email || '',
+        entityType: 'maintenance',
+        entityId: uniqueId,
+      });
+
+      toast.success(`Created "${newTask.title}".`);
       setNewTitle('');
       setNewDescription('');
+      setNewAssignees([]);
       setSelectedFreq(newFrequency);
       setShowAddTask(false);
     } catch (err) {
@@ -339,6 +373,17 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
 
                       <p className="text-[13px] text-[#6e6e73] leading-relaxed break-words">{task.description}</p>
 
+                      {task.assignedTo && task.assignedTo.length > 0 && (
+                        <p className="flex items-start gap-1.5 text-[12px] text-[#6e6e73]">
+                          <Users size={13} className="text-[#86868b] shrink-0 mt-0.5" aria-hidden="true" />
+                          <span className="break-words">
+                            {task.assignedTo
+                              .map(email => allowedUsers.find(u => u.email === email)?.name || nameFromEmail(email))
+                              .join(', ')}
+                          </span>
+                        </p>
+                      )}
+
                       <div className="pt-3 border-t border-[#e8e8ed] flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                         <span className="text-[13px] text-[#86868b] flex items-center gap-1.5 font-medium">
                           <Clock size={14} aria-hidden="true" />
@@ -478,6 +523,44 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
             </select>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className={`${labelClass} !mb-0`} id="task-assignees-label">
+                Assign to <span className="text-[#86868b] font-normal">(optional)</span>
+              </label>
+              <span className="text-[12px] text-[#86868b]">{newAssignees.length} selected</span>
+            </div>
+            <div
+              role="group"
+              aria-labelledby="task-assignees-label"
+              className="max-h-36 overflow-y-auto border border-[#d2d2d7] rounded-lg bg-[#f5f5f7] p-2.5 space-y-1"
+            >
+              {allowedUsers.length === 0 ? (
+                <p className="text-[12px] text-[#86868b] text-center py-3">No students whitelisted yet.</p>
+              ) : (
+                allowedUsers.map(u => (
+                  <label
+                    key={u.email}
+                    className="flex items-center gap-2.5 text-[13px] text-[#1d1d1f] cursor-pointer select-none rounded-md px-1.5 py-1 hover:bg-white transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={newAssignees.includes(u.email)}
+                      onChange={() =>
+                        setNewAssignees(cur =>
+                          cur.includes(u.email) ? cur.filter(e => e !== u.email) : [...cur, u.email],
+                        )
+                      }
+                      className="h-4 w-4 rounded border-[#d2d2d7] accent-[#0071e3]"
+                    />
+                    <span className="truncate">{u.name || nameFromEmail(u.email)}</span>
+                  </label>
+                ))
+              )}
+            </div>
+            <p className="text-[12px] text-[#86868b] mt-1.5">Anyone selected is notified that this routine is theirs.</p>
           </div>
 
           <div>

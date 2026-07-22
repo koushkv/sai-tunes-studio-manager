@@ -2,7 +2,7 @@
  * Turns a Firestore/Firebase error into something a student can act on.
  *
  * Firestore surfaces failures as terse codes ("permission-denied"), which are
- * useless in the UI and — worse — indistinguishable from each other when they
+ * useless in the UI and, worse, indistinguishable from each other when they
  * all collapse into a generic "try again". Keeping them separate matters here:
  * a rules misconfiguration and a dropped connection need opposite responses.
  */
@@ -14,7 +14,7 @@ export function firestoreErrorMessage(err: unknown, fallback: string): string {
   switch (code) {
     case 'permission-denied':
     case 'firestore/permission-denied':
-      return 'You do not have permission for that. Your access level may have changed — sign out and back in, or ask an admin.';
+      return 'You do not have permission for that. Your access level may have changed. Sign out and back in, or ask an admin.';
 
     case 'unauthenticated':
     case 'firestore/unauthenticated':
@@ -35,7 +35,7 @@ export function firestoreErrorMessage(err: unknown, fallback: string): string {
 
     case 'not-found':
     case 'firestore/not-found':
-      return 'That record no longer exists — someone may have deleted it.';
+      return 'That record no longer exists. Someone may have deleted it.';
 
     case 'already-exists':
     case 'firestore/already-exists':

@@ -30,7 +30,7 @@ export default function ProjectsPortfolio({ allowedUsers }: ProjectsPortfolioPro
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
 
   useEffect(() => {
-    // The Portfolio is the public archive — pending submissions never appear here.
+    // The Portfolio is the public archive; pending submissions never appear here.
     return onSnapshot(query(collection(db, 'projects'), where('approval', '==', 'approved')), (snapshot) => {
       const list: MusicProject[] = [];
       snapshot.forEach((docSnap) => {

@@ -12,15 +12,21 @@ interface NotifyInput {
 }
 
 /**
- * Records an activity notification for the admin feed.
+ * Writes a notification document.
  *
- * Deliberately fire-and-forget: a notification failing must never roll back or
- * block the action the student actually took. Failures are logged, not surfaced.
+ * Deliberately fire and forget: a notification failing must never roll back or
+ * block the action a student actually took. Failures are logged, not surfaced.
  */
-export async function notify(input: NotifyInput): Promise<void> {
+async function write(
+  input: NotifyInput,
+  audience: 'managers' | 'recipients',
+  recipients: string[],
+): Promise<void> {
   try {
     await addDoc(collection(db, 'notifications'), {
       ...input,
+      audience,
+      recipients,
       createdAt: new Date().toISOString(),
       readBy: [],
     });
@@ -29,7 +35,25 @@ export async function notify(input: NotifyInput): Promise<void> {
   }
 }
 
-/** Read state is per-admin, so "read" means "this email is in readBy". */
+/** Broadcasts to every admin and junior admin. Used for the activity feed. */
+export function notifyManagers(input: NotifyInput): Promise<void> {
+  return write(input, 'managers', []);
+}
+
+/**
+ * Notifies specific people, e.g. the students just assigned to a project.
+ * The actor is filtered out so nobody is notified about their own action.
+ */
+export function notifyPeople(recipients: string[], input: NotifyInput): Promise<void> {
+  const targets = [...new Set(
+    recipients.map(e => e.trim().toLowerCase()).filter(Boolean),
+  )].filter(email => email !== input.actorEmail.toLowerCase());
+
+  if (targets.length === 0) return Promise.resolve();
+  return write(input, 'recipients', targets);
+}
+
+/** Read state is per person, so "read" means "this email is in readBy". */
 export async function markNotificationRead(id: string, email: string): Promise<void> {
   try {
     await updateDoc(doc(db, 'notifications', id), { readBy: arrayUnion(email) });
@@ -39,11 +63,13 @@ export async function markNotificationRead(id: string, email: string): Promise<v
 }
 
 export const NOTIFICATION_META: Record<NotificationType, { label: string; tone: string; dot: string }> = {
-  project_submitted: { label: 'Awaiting approval', tone: 'text-[#a86500]', dot: 'bg-[#ff9f0a]' },
-  project_updated:   { label: 'Project updated',   tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
-  project_approved:  { label: 'Approved',          tone: 'text-[#1a7f37]', dot: 'bg-[#34c759]' },
-  project_rejected:  { label: 'Changes requested', tone: 'text-[#c9302c]', dot: 'bg-[#ff3b30]' },
-  asset_checked_out: { label: 'Checked out',       tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
-  asset_returned:    { label: 'Returned',          tone: 'text-[#1a7f37]', dot: 'bg-[#34c759]' },
-  maintenance_logged:{ label: 'Maintenance',       tone: 'text-[#6e6e73]', dot: 'bg-[#86868b]' },
+  project_submitted:  { label: 'Awaiting approval',  tone: 'text-[#a86500]', dot: 'bg-[#ff9f0a]' },
+  project_updated:    { label: 'Project updated',    tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
+  project_approved:   { label: 'Approved',           tone: 'text-[#1a7f37]', dot: 'bg-[#34c759]' },
+  project_rejected:   { label: 'Changes requested',  tone: 'text-[#c9302c]', dot: 'bg-[#ff3b30]' },
+  project_assigned:   { label: 'Assigned to you',    tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
+  task_assigned:      { label: 'Task assigned',      tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
+  asset_checked_out:  { label: 'Checked out',        tone: 'text-[#0071e3]', dot: 'bg-[#0071e3]' },
+  asset_returned:     { label: 'Returned',           tone: 'text-[#1a7f37]', dot: 'bg-[#34c759]' },
+  maintenance_logged: { label: 'Maintenance',        tone: 'text-[#6e6e73]', dot: 'bg-[#86868b]' },
 };

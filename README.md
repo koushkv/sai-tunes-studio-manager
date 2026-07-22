@@ -1,4 +1,4 @@
-# Sai Tunes — Studio Manager
+# Sai Tunes Studio Manager
 
 Asset register, lending logbook, production tracker, and maintenance scheduler for the
 Sai Tunes Hostel Music Department, SSSIHL.
@@ -19,16 +19,16 @@ npm run dev
 | Command         | What it does                               |
 | --------------- | ------------------------------------------ |
 | `npm run dev`   | Vite dev server on <http://localhost:3000> |
-| `npm run lint`  | `tsc --noEmit` — full strict type check    |
+| `npm run lint`  | `tsc --noEmit`, a full strict type check   |
 | `npm run build` | Production build into `dist/`              |
 
 ## Firebase setup
 
 There is no `.env` for Firebase. Config lives in `firebase-applet-config.json`, which is
 committed on purpose: Firebase web keys are public identifiers, and access is enforced by
-`firestore.rules` — not by hiding them.
+`firestore.rules`, not by hiding them.
 
-### ⚠️ The database is *not* `(default)`
+### Important: the database is *not* `(default)`
 
 Data lives in a **named** Firestore database:
 
@@ -41,7 +41,7 @@ This matters constantly:
 - `src/lib/firebase.ts` passes the name to `initializeFirestore(app, settings, databaseId)`.
 - `firebase.json` maps `firestore.rules` to that database by name. Without this mapping,
   `firebase deploy --only firestore:rules` either fails or writes rules to `(default)`,
-  which nothing reads — so the rules silently never take effect.
+  which nothing reads, so the rules silently never take effect.
 - In the Firebase Console, pick the named database from the dropdown before editing rules.
 
 Confirm the name any time with:
@@ -58,13 +58,38 @@ firebase deploy --only firestore:rules
 
 Rules are in [`firestore.rules`](firestore.rules). Access model:
 
-| Collection          | Read      | Write                                                              |
-| ------------------- | --------- | ------------------------------------------------------------------ |
-| `allowed_users`     | whitelist | admin only                                                          |
-| `assets`            | whitelist | managers; students may change only `lentTo` / `lentAt`              |
-| `instrument_logs`   | whitelist | whitelist may create/close; managers may delete                     |
-| `projects`          | whitelist | managers create/delete; any student may update stage                |
-| `maintenance_tasks` | whitelist | managers create/delete; students may change `lastDone` / `history`  |
+| Collection          | Read                                          | Write                                                             |
+| ------------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| `allowed_users`     | whitelist                                     | admin only                                                         |
+| `assets`            | whitelist                                     | managers; students may change only `lentTo` / `lentAt`             |
+| `instrument_logs`   | whitelist                                     | whitelist may create/close; managers may delete                    |
+| `projects`          | approved records, plus your own submissions   | students submit as `pending`; managers approve; stage-only updates |
+| `maintenance_tasks` | whitelist                                     | managers create/delete; students may change `lastDone` / `history` |
+| `notifications`     | managers (feed) or named recipients           | whitelist creates; anyone may mark read                            |
+
+### Project approval workflow
+
+Students can create and edit projects, but nothing is public until an admin approves it.
+
+- A student's project is created with `approval: 'pending'` and `createdByEmail` set to
+  their own address. The rules forbid self-approval.
+- Pending and rejected projects are readable only by their author and by managers. They
+  never reach the shared Projects list or the Portfolio.
+- Managers approve or request changes from the queue at the top of the Projects tab.
+  Requesting changes requires a note, shown back to the author.
+- Editing an approved project sends it back to `pending`. Logging stage progress does not,
+  which is why the rules allow a stage-only update path.
+
+### Notifications
+
+One `notifications` collection serves two audiences, set per document:
+
+- `audience: 'managers'` is the studio activity feed: submissions, edits, checkouts,
+  returns, and maintenance logs.
+- `audience: 'recipients'` targets named people, so students hear when they are assigned
+  to a project or a maintenance routine, and when their submission is approved or sent back.
+
+Read state is per person via the `readBy` array, so each admin tracks their own unread count.
 
 "Whitelist" means a document exists at `allowed_users/<lowercase-email>`.
 Roles are `admin`, `junior_admin` (manager), and `member` (student).
@@ -103,11 +128,14 @@ src/
     firebase.ts              app/auth/firestore init (named database)
     stages.ts                production stages, asset statuses, role badges
     format.ts                date and name formatting helpers
+    errors.ts                Firebase error codes to readable messages
+    notifications.ts         writing and reading the notification feed
   components/
     InstrumentLogbook.tsx    inventory + lending
     ProjectsTracker.tsx      production pipeline
     ProjectsPortfolio.tsx    read-only archive by year
     MaintenanceScheduler.tsx routine checks + completion log
     AdminControls.tsx        user whitelist and roles
+    NotificationsBell.tsx    header bell, feed and per-person notices
     ui/                      Modal, Toast, shared primitives
 ```

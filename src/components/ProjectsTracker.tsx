@@ -5,7 +5,7 @@ import type { MusicProject, ProjectStage, ProjectApproval, AllowedUser, UserRole
 import { STAGES, getStage, stageProgress } from '../lib/stages';
 import { formatDate, formatDateTime, formatRelative, nameFromEmail } from '../lib/format';
 import { firestoreErrorMessage } from '../lib/errors';
-import { notify } from '../lib/notifications';
+import { notifyManagers, notifyPeople } from '../lib/notifications';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import {
@@ -158,7 +158,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
 
   const approved = useMemo(() => projects.filter(p => p.approval === 'approved'), [projects]);
   const pendingReview = useMemo(() => projects.filter(p => p.approval === 'pending'), [projects]);
-  /** Sent back to their authors — managers keep sight of these so they don't vanish. */
+  /** Sent back to their authors. Managers keep sight of these so they don't vanish. */
   const sentBack = useMemo(() => projects.filter(p => p.approval === 'rejected'), [projects]);
   /** A student's own submissions that are not live yet. */
   const mySubmissions = useMemo(
@@ -252,8 +252,22 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
     try {
       await setDoc(doc(db, 'projects', projectId), payload);
 
+      // Tell newly assigned students they are on this project. Only the people
+      // added by this save are notified, so re-editing does not spam everyone.
+      const alreadyAssigned = existing?.students || [];
+      const newlyAssigned = selectedStudents.filter(email => !alreadyAssigned.includes(email));
+      await notifyPeople(newlyAssigned, {
+        type: 'project_assigned',
+        title: `You were added to "${payload.name}"`,
+        body: `Occasion: ${payload.occasion}`,
+        actorName: myName,
+        actorEmail: myEmail,
+        entityType: 'project',
+        entityId: projectId,
+      });
+
       if (!canManage) {
-        await notify({
+        await notifyManagers({
           type: existing ? 'project_updated' : 'project_submitted',
           title: existing ? `“${payload.name}” was edited` : `New project “${payload.name}” needs approval`,
           body: `Occasion: ${payload.occasion}`,
@@ -300,7 +314,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
       });
 
       if (!canManage) {
-        await notify({
+        await notifyManagers({
           type: 'project_updated',
           title: `“${updatingProject.name}” moved to ${getStage(updateStageValue).label}`,
           body: updateNotes.trim(),
@@ -337,18 +351,26 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
         reviewNote: reviewNote.trim(),
       });
 
-      await notify({
-        type: decision === 'approved' ? 'project_approved' : 'project_rejected',
+      const decisionNotice = {
+        type: decision === 'approved' ? ('project_approved' as const) : ('project_rejected' as const),
         title:
           decision === 'approved'
-            ? `“${project.name}” was approved`
-            : `Changes requested on “${project.name}”`,
-        body: reviewNote.trim() || (decision === 'approved' ? 'Now visible to everyone.' : ''),
+            ? `"${project.name}" was approved`
+            : `Changes requested on "${project.name}"`,
+        body: reviewNote.trim() || (decision === 'approved' ? 'It is now visible to everyone.' : ''),
         actorName: myName,
         actorEmail: myEmail,
-        entityType: 'project',
+        entityType: 'project' as const,
         entityId: project.id,
-      });
+      };
+
+      // The author needs to know the outcome, and the rest of the team needs
+      // it in the activity feed.
+      await notifyPeople(
+        [project.createdByEmail, ...(project.students || [])],
+        decisionNotice,
+      );
+      await notifyManagers(decisionNotice);
 
       toast.success(
         decision === 'approved'
@@ -634,7 +656,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
             </section>
           )}
 
-          {/* Sent back — waiting on the author, but still visible to managers */}
+          {/* Sent back: waiting on the author, but still visible to managers */}
           {canManage && sentBack.length > 0 && (
             <section className="space-y-3" aria-labelledby="sent-back">
               <h3 id="sent-back" className="text-[16px] font-semibold text-[#1d1d1f]">

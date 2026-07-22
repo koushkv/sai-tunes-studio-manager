@@ -8,7 +8,7 @@ export interface StageMeta {
   step: number;
 }
 
-/** Single source of truth for the production pipeline — used by Projects and Portfolio. */
+/** Single source of truth for the production pipeline, used by Projects and Portfolio. */
 export const STAGES: StageMeta[] = [
   { value: 'composing',   label: 'Composing',   bg: 'bg-[#0071e3]/10', text: 'text-[#0071e3]', step: 1 },
   { value: 'arranging',   label: 'Arranging',   bg: 'bg-[#af52de]/10', text: 'text-[#af52de]', step: 2 },

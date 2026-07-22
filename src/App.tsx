@@ -155,7 +155,7 @@ export default function App() {
     setUserRole(found ? found.role : null);
   }, [user, allowedUsers, allowedUsersLoading]);
 
-  // Settings is admin-only — drop out of it if the role is revoked live.
+  // Settings is admin-only, so drop out of it if the role is revoked live.
   useEffect(() => {
     if (!isAdmin && showAdminTab) setShowAdminTab(false);
   }, [isAdmin, showAdminTab]);
@@ -255,12 +255,12 @@ export default function App() {
 
               {isAuthed && user && (
                 <div className="flex items-center gap-2">
-                  {canManage && (
-                    <NotificationsBell
-                      currentUserEmail={user.email}
-                      onOpenProjects={() => openTab('projects')}
-                    />
-                  )}
+                  <NotificationsBell
+                    currentUserEmail={user.email}
+                    canManage={canManage}
+                    onOpenProjects={() => openTab('projects')}
+                    onOpenMaintenance={() => openTab('maintenance')}
+                  />
 
                   {/* Desktop nav */}
                   <nav aria-label="Sections" className="hidden md:flex items-center gap-0.5">
@@ -354,7 +354,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Mobile nav — one scrollable row, no duplicated controls */}
+            {/* Mobile nav: one scrollable row, no duplicated controls */}
             {isAuthed && (
               <nav
                 aria-label="Sections"

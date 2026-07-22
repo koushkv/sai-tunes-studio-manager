@@ -7,15 +7,15 @@ function parse(value?: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-/** "12 Mar 2026" — falls back to the raw string if it isn't a date. */
-export function formatDate(value?: string | null, fallback = '—') {
+/** "12 Mar 2026". Falls back to the raw string if it isn't a date. */
+export function formatDate(value?: string | null, fallback = '-') {
   const d = parse(value);
   if (!d) return value || fallback;
   return d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** "12 Mar, 4:30 pm" — used in the lending logs. */
-export function formatDateTime(value?: string | null, fallback = '—') {
+/** "12 Mar, 4:30 pm", used in the lending logs. */
+export function formatDateTime(value?: string | null, fallback = '-') {
   const d = parse(value);
   if (!d) return value || fallback;
   const date = d.toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
@@ -23,7 +23,7 @@ export function formatDateTime(value?: string | null, fallback = '—') {
   return `${date}, ${time}`;
 }
 
-/** "just now" / "3 days ago" — for at-a-glance recency. */
+/** "just now" / "3 days ago", for at-a-glance recency. */
 export function formatRelative(value?: string | null) {
   const d = parse(value);
   if (!d) return '';
