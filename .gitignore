@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase CLI artifacts (regenerated on every deploy)
+.firebase/
+firebase-debug.log
+firestore-debug.log

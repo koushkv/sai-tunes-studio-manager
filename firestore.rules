@@ -1,8 +1,98 @@
 rules_version = '2';
+
+// Sai Tunes Studio Manager — Firestore security rules.
+//
+// Access is driven by the `allowed_users` collection, whose document IDs are
+// lowercase email addresses (e.g. allowed_users/student@sssihl.edu.in).
+//
+// IMPORTANT: data lives in the NAMED database
+//   ai-studio-5ef3cf36-0574-406a-be41-ce0c3910d627
+// not "(default)". firebase.json maps this file to that database. Deploy with:
+//   firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function callerEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // Break-glass account. Mirrors MASTER_ADMIN_EMAIL in src/App.tsx and
+    // guarantees the owner can always restore access, even if every
+    // allowed_users document is deleted.
+    function isMaster() {
+      return signedIn() && callerEmail() == 'koushikv@sssihl.edu.in';
+    }
+
+    function callerDoc() {
+      return /databases/$(database)/documents/allowed_users/$(callerEmail());
+    }
+
+    // Signed in AND present in the whitelist.
+    function allowed() {
+      return signedIn() && exists(callerDoc());
+    }
+
+    function role() {
+      return get(callerDoc()).data.role;
+    }
+
+    function isAdmin() {
+      return isMaster() || (allowed() && role() == 'admin');
+    }
+
+    function isManager() {
+      return isMaster() || (allowed() && role() in ['admin', 'junior_admin']);
+    }
+
+    // Only changes these exact fields, and nothing else.
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // Who may sign in and at what level. Admins only.
+    match /allowed_users/{email} {
+      allow read: if allowed() || isMaster();
+      allow write: if isAdmin();
+    }
+
+    // Inventory. Any whitelisted student may lend and return an item (which
+    // touches only lentTo/lentAt); managers may add, edit, and delete items.
+    match /assets/{assetId} {
+      allow read: if allowed();
+      allow create, delete: if isManager();
+      allow update: if isManager()
+                    || (allowed() && onlyChanges(['lentTo', 'lentAt']));
+    }
+
+    // Lending logbook. Students create entries on checkout and close them on
+    // return; only managers may erase history.
+    match /instrument_logs/{logId} {
+      allow read, create, update: if allowed();
+      allow delete: if isManager();
+    }
+
+    // Projects. Managers own the lifecycle; any student may log stage progress.
+    match /projects/{projectId} {
+      allow read, update: if allowed();
+      allow create, delete: if isManager();
+    }
+
+    // Maintenance routines. Any student may log a completion (lastDone +
+    // history); only managers may create, reword, or remove a routine.
+    match /maintenance_tasks/{taskId} {
+      allow read: if allowed();
+      allow create, delete: if isManager();
+      allow update: if isManager()
+                    || (allowed() && onlyChanges(['lastDone', 'history']));
+    }
+
+    // Everything else is denied.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

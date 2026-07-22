@@ -11,31 +11,46 @@ import {
 import {
   Package,
   Plus,
-  Edit,
+  Pencil,
   Trash2,
   Search,
-  CheckCircle,
-  AlertTriangle,
+  CheckCircle2,
   Clock,
-  X,
   ArrowRightLeft,
   RotateCcw,
-  User,
-  MapPin,
-  Tag,
+  ChevronDown,
+  SearchX,
 } from 'lucide-react';
-import { Asset, AssetStatus } from '../types';
+import { Asset, AssetStatus, UserRole } from '../types';
+import { ASSET_STATUS } from '../lib/stages';
+import { formatDateTime } from '../lib/format';
+import { firestoreErrorMessage } from '../lib/errors';
+import Modal from './ui/Modal';
+import { useToast } from './ui/Toast';
+import {
+  Button,
+  EmptyState,
+  FilterPill,
+  LoadingState,
+  PageHeader,
+  cardClass,
+  inputClass,
+  labelClass,
+  selectClass,
+  textareaClass,
+} from './ui/Primitives';
 
 interface InstrumentLogbookProps {
   currentUser: { email: string; displayName: string; photoURL: string | null };
   isAdmin: boolean;
-  userRole: import('../types').UserRole | null;
+  userRole: UserRole | null;
 }
 
 interface SessionLog {
   id: string;
   studentName: string;
   rollNumber: string;
+  lentBy?: string;
   assetId: string;
   assetName: string;
   purpose: string;
@@ -45,19 +60,20 @@ interface SessionLog {
   notes?: string;
 }
 
-const STATUS_STYLES: Record<AssetStatus, { bg: string; text: string; label: string }> = {
-  operational: { bg: 'bg-[#34c759]/10', text: 'text-[#34c759]', label: 'Operational' },
-  needs_repair: { bg: 'bg-[#ff3b30]/10', text: 'text-[#ff3b30]', label: 'Needs repair' },
-  maintenance: { bg: 'bg-[#ff9f0a]/10', text: 'text-[#ff9f0a]', label: 'Maintenance' },
-  missing: { bg: 'bg-[#86868b]/10', text: 'text-[#86868b]', label: 'Missing' },
-};
-
 const EMPTY_ASSET = {
-  name: '', category: '', model: '', serialNumber: '', location: '', status: 'operational' as AssetStatus, remarks: '',
+  name: '',
+  category: '',
+  model: '',
+  serialNumber: '',
+  location: '',
+  status: 'operational' as AssetStatus,
+  remarks: '',
 };
 
 export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: InstrumentLogbookProps) {
   const canManage = isAdmin || userRole === 'junior_admin';
+  const toast = useToast();
+
   const [assets, setAssets] = useState<Asset[]>([]);
   const [sessions, setSessions] = useState<SessionLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,87 +82,119 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sessionFilter, setSessionFilter] = useState<'active' | 'completed' | 'all'>('active');
+  const [historyAssetFilter, setHistoryAssetFilter] = useState<string>('all');
 
   // Asset form (add/edit)
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const [assetForm, setAssetForm] = useState(EMPTY_ASSET);
-  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
 
   // Checkout form
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
   const [checkoutAssetId, setCheckoutAssetId] = useState('');
-  const [checkoutLenderName, setCheckoutLenderName] = useState(currentUser.displayName || currentUser.email);
   const [checkoutName, setCheckoutName] = useState('');
   const [checkoutRoll, setCheckoutRoll] = useState('');
   const [checkoutPurpose, setCheckoutPurpose] = useState('Composition');
 
-  // Return state
-  const [returningSessionId, setReturningSessionId] = useState<string | null>(null);
+  // Return flow
+  const [returningSession, setReturningSession] = useState<SessionLog | null>(null);
   const [returnNotes, setReturnNotes] = useState('');
 
-  // History filtering & item detail view
-  const [historyAssetFilter, setHistoryAssetFilter] = useState<string>('all');
+  // Per-asset expanded lending log
   const [expandedAssetHistoryId, setExpandedAssetHistoryId] = useState<string | null>(null);
 
-  // Sync assets from Firestore
-  useEffect(() => {
-    const assetsRef = collection(db, 'assets');
-    const unsubAssets = onSnapshot(assetsRef, (snapshot) => {
-      const items: Asset[] = [];
-      snapshot.forEach((docSnap) => {
-        items.push({ id: docSnap.id, ...docSnap.data() } as Asset);
-      });
-      items.sort((a, b) => a.name.localeCompare(b.name));
-      setAssets(items);
-      setLoading(false);
-    }, (err) => {
-      console.error('Error fetching assets:', err);
-      setLoading(false);
-    });
+  // Blocks double submits on every async action
+  const [busy, setBusy] = useState(false);
 
-    const logsRef = collection(db, 'instrument_logs');
-    const unsubLogs = onSnapshot(logsRef, (snapshot) => {
-      const items: SessionLog[] = [];
-      snapshot.forEach((docSnap) => {
-        items.push({ id: docSnap.id, ...docSnap.data() } as SessionLog);
-      });
-      items.sort((a, b) => (b.checkInTime || '').localeCompare(a.checkInTime || ''));
-      setSessions(items);
-    });
+  // Sync assets + logs from Firestore
+  useEffect(() => {
+    const unsubAssets = onSnapshot(
+      collection(db, 'assets'),
+      (snapshot) => {
+        const items: Asset[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as Asset));
+        items.sort((a, b) => a.name.localeCompare(b.name));
+        setAssets(items);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching assets:', err);
+        toast.error(firestoreErrorMessage(err, 'Could not load the inventory. Check your connection.'));
+        setLoading(false);
+      },
+    );
+
+    const unsubLogs = onSnapshot(
+      collection(db, 'instrument_logs'),
+      (snapshot) => {
+        const items: SessionLog[] = [];
+        snapshot.forEach((docSnap) => items.push({ id: docSnap.id, ...docSnap.data() } as SessionLog));
+        items.sort((a, b) => (b.checkInTime || '').localeCompare(a.checkInTime || ''));
+        setSessions(items);
+      },
+      (err) => {
+        console.error('Error fetching lending logs:', err);
+        toast.error(firestoreErrorMessage(err, 'Could not load the lending history.'));
+      },
+    );
 
     return () => { unsubAssets(); unsubLogs(); };
-  }, []);
+  }, [toast]);
 
-  // Dynamic categories from data
-  const categories = useMemo(() => {
-    const cats = [...new Set(assets.map(a => a.category).filter(Boolean))];
-    return cats.sort();
-  }, [assets]);
+  const categories = useMemo(
+    () => [...new Set(assets.map(a => a.category).filter(Boolean))].sort(),
+    [assets],
+  );
 
-  // Filter assets
   const filteredAssets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return assets.filter(a => {
       const matchesCat = selectedCategory === 'all' || a.category === selectedCategory;
-      const matchesSearch = !searchQuery ||
-        a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch =
+        !q ||
+        a.name.toLowerCase().includes(q) ||
+        (a.model || '').toLowerCase().includes(q) ||
+        (a.category || '').toLowerCase().includes(q) ||
+        (a.serialNumber || '').toLowerCase().includes(q) ||
+        (a.location || '').toLowerCase().includes(q);
       return matchesCat && matchesSearch;
     });
   }, [assets, selectedCategory, searchQuery]);
 
-  // Filter sessions
-  const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
+  const filteredSessions = useMemo(
+    () => sessions.filter(s => {
       const matchesStatus = sessionFilter === 'all' || s.status === sessionFilter;
       const matchesAsset = historyAssetFilter === 'all' || s.assetId === historyAssetFilter;
       return matchesStatus && matchesAsset;
-    });
-  }, [sessions, sessionFilter, historyAssetFilter]);
+    }),
+    [sessions, sessionFilter, historyAssetFilter],
+  );
 
-  // Available assets for checkout (operational + not lent)
-  const availableAssets = assets.filter(a => a.status === 'operational' && !a.lentTo);
+  const availableAssets = useMemo(
+    () => assets.filter(a => a.status === 'operational' && !a.lentTo),
+    [assets],
+  );
+
+  const stats = useMemo(() => ({
+    total: assets.length,
+    available: availableAssets.length,
+    lent: assets.filter(a => Boolean(a.lentTo)).length,
+    attention: assets.filter(a => a.status === 'needs_repair' || a.status === 'missing').length,
+  }), [assets, availableAssets]);
+
+  /** Active session for an asset, used to offer an inline return. */
+  const activeSessionFor = (assetId: string) =>
+    sessions.find(s => s.assetId === assetId && s.status === 'active') || null;
+
+  // Assets referenced by the history dropdown, including ones since deleted.
+  const historyAssetOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    // Several assets share a brand name, so disambiguate with the model.
+    assets.forEach(a => byId.set(a.id, a.model ? `${a.name} — ${a.model}` : a.name));
+    sessions.forEach(s => { if (!byId.has(s.assetId)) byId.set(s.assetId, `${s.assetName || s.assetId} (removed)`); });
+    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [assets, sessions]);
 
   // === Asset CRUD ===
   const openAddAsset = () => {
@@ -158,20 +206,27 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
   const openEditAsset = (asset: Asset) => {
     setAssetForm({
       name: asset.name,
-      category: asset.category,
-      model: asset.model,
-      serialNumber: asset.serialNumber,
-      location: asset.location,
+      category: asset.category || '',
+      model: asset.model || '',
+      serialNumber: asset.serialNumber || '',
+      location: asset.location || '',
       status: asset.status,
-      remarks: asset.remarks,
+      remarks: asset.remarks || '',
     });
     setEditingAssetId(asset.id);
     setShowAssetForm(true);
   };
 
+  const closeAssetForm = () => {
+    setShowAssetForm(false);
+    setEditingAssetId(null);
+    setAssetForm(EMPTY_ASSET);
+  };
+
   const handleAssetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assetForm.name.trim()) return;
+    if (busy) return;
+    if (!assetForm.name.trim() || !assetForm.category.trim()) return;
 
     const data = {
       name: assetForm.name.trim(),
@@ -184,45 +239,78 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       lastChecked: new Date().toISOString().split('T')[0],
     };
 
+    setBusy(true);
     try {
       if (editingAssetId) {
         await updateDoc(doc(db, 'assets', editingAssetId), data);
+        toast.success(`Updated “${data.name}”.`);
       } else {
         await addDoc(collection(db, 'assets'), { ...data, lentTo: '', lentAt: '' });
+        toast.success(`Added “${data.name}” to the inventory.`);
       }
-      setShowAssetForm(false);
-      setEditingAssetId(null);
-      setAssetForm(EMPTY_ASSET);
+      closeAssetForm();
     } catch (err) {
       console.error('Error saving asset:', err);
+      toast.error(firestoreErrorMessage(err, 'Could not save the asset. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleDeleteAsset = async (id: string) => {
+  const handleDeleteAsset = async () => {
+    if (!assetToDelete || busy) return;
+    setBusy(true);
     try {
-      await deleteDoc(doc(db, 'assets', id));
-      setDeletingAssetId(null);
+      await deleteDoc(doc(db, 'assets', assetToDelete.id));
+      toast.success(`Removed “${assetToDelete.name}”. Its lending history is kept.`);
+      setAssetToDelete(null);
     } catch (err) {
       console.error('Error deleting asset:', err);
+      toast.error(firestoreErrorMessage(err, 'Could not delete the asset. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
   // === Checkout ===
+  const openCheckout = (assetId = '') => {
+    setCheckoutAssetId(assetId);
+    setCheckoutName('');
+    setCheckoutRoll('');
+    setCheckoutPurpose('Composition');
+    setShowCheckoutForm(true);
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkoutAssetId || !checkoutName.trim()) return;
+    if (busy) return;
+    if (!checkoutAssetId || !checkoutName.trim() || !checkoutPurpose.trim()) return;
 
     const asset = assets.find(a => a.id === checkoutAssetId);
-    if (!asset) return;
+    if (!asset) {
+      toast.error('That item is no longer in the inventory.');
+      return;
+    }
+    // Guard against two people checking the same item out at once.
+    if (asset.lentTo) {
+      toast.error(`“${asset.name}” was just lent to ${asset.lentTo}.`);
+      return;
+    }
 
     const now = new Date().toISOString();
-    const lenderUsername = currentUser.displayName || currentUser.email || 'Student';
+    const lender = currentUser.displayName || currentUser.email;
 
+    setBusy(true);
     try {
+      await updateDoc(doc(db, 'assets', checkoutAssetId), {
+        lentTo: checkoutName.trim(),
+        lentAt: now,
+      });
+
       await addDoc(collection(db, 'instrument_logs'), {
         studentName: checkoutName.trim(),
         rollNumber: checkoutRoll.trim(),
-        lentBy: lenderUsername,
+        lentBy: lender,
         assetId: checkoutAssetId,
         assetName: asset.name,
         purpose: checkoutPurpose.trim(),
@@ -230,11 +318,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         status: 'active',
       });
 
-      await updateDoc(doc(db, 'assets', checkoutAssetId), {
-        lentTo: checkoutName.trim(),
-        lentAt: now,
-      });
-
+      toast.success(`“${asset.name}” checked out to ${checkoutName.trim()}.`);
       setShowCheckoutForm(false);
       setCheckoutAssetId('');
       setCheckoutRoll('');
@@ -242,13 +326,21 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       setCheckoutPurpose('Composition');
     } catch (err) {
       console.error('Error during checkout:', err);
+      toast.error(firestoreErrorMessage(err, 'Checkout failed. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
   // === Return ===
-  const handleReturn = async (session: SessionLog) => {
+  const handleReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returningSession || busy) return;
+
+    const session = returningSession;
     const now = new Date().toISOString();
 
+    setBusy(true);
     try {
       await updateDoc(doc(db, 'instrument_logs', session.id), {
         checkOutTime: now,
@@ -256,531 +348,695 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         notes: returnNotes.trim() || 'Returned in good condition',
       });
 
-      // Find the asset doc by matching session.assetId
-      const assetDoc = assets.find(a => a.id === session.assetId);
-      if (assetDoc) {
-        await updateDoc(doc(db, 'assets', session.assetId), {
-          lentTo: '',
-          lentAt: '',
-        });
+      // The asset may have been deleted while it was out — only clear it if it still exists.
+      if (assets.some(a => a.id === session.assetId)) {
+        await updateDoc(doc(db, 'assets', session.assetId), { lentTo: '', lentAt: '' });
       }
 
-      setReturningSessionId(null);
+      toast.success(`“${session.assetName}” marked as returned.`);
+      setReturningSession(null);
       setReturnNotes('');
     } catch (err) {
       console.error('Error during return:', err);
+      toast.error(firestoreErrorMessage(err, 'Could not record the return. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const formatDateTime = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' +
-        d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    } catch { return iso; }
+  const openReturn = (session: SessionLog) => {
+    setReturnNotes('');
+    setReturningSession(session);
   };
 
   return (
     <div className="space-y-6 font-sans">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 className="text-[22px] font-bold text-[#1d1d1f]">Inventory</h2>
-          <p className="text-[13px] text-[#86868b] mt-0.5">Track equipment and lending</p>
-        </div>
-        <div className="flex gap-2">
-          {availableAssets.length > 0 && (
-            <button
-              onClick={() => setShowCheckoutForm(true)}
-              className="flex items-center gap-1.5 bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors"
+      <PageHeader
+        title="Inventory"
+        subtitle="Track studio equipment, availability, and lending"
+        actions={
+          <>
+            <Button
+              icon={ArrowRightLeft}
+              onClick={() => openCheckout()}
+              disabled={availableAssets.length === 0}
+              title={availableAssets.length === 0 ? 'No items are currently available' : undefined}
             >
-              <ArrowRightLeft size={14} />
               Checkout
-            </button>
-          )}
-          {canManage && (
-            <button
-              onClick={openAddAsset}
-              className="flex items-center gap-1.5 bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors"
-            >
-              <Plus size={14} />
-              Add asset
-            </button>
-          )}
-        </div>
-      </div>
+            </Button>
+            {canManage && (
+              <Button variant="secondary" icon={Plus} onClick={openAddAsset}>
+                Add asset
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {/* Search + Category Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-2.5 text-[#86868b]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search assets..."
-            className="w-full pl-9 pr-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]"
-          />
+      {/* Stats — one compact strip so the list starts higher up the page */}
+      {assets.length > 0 && (
+        <div className={`${cardClass} grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[#e8e8ed]`}>
+          {[
+            { label: 'Total items', value: stats.total, tone: 'text-[#1d1d1f]' },
+            { label: 'Available', value: stats.available, tone: 'text-[#34c759]' },
+            { label: 'Currently lent', value: stats.lent, tone: 'text-[#0071e3]' },
+            { label: 'Needs attention', value: stats.attention, tone: 'text-[#ff9f0a]' },
+          ].map(s => (
+            <div key={s.label} className="px-4 py-3 flex items-baseline gap-2">
+              <span className={`text-[20px] font-bold tabular-nums ${s.tone}`}>{s.value}</span>
+              <span className="text-[12px] text-[#86868b] leading-tight">{s.label}</span>
+            </div>
+          ))}
         </div>
+      )}
 
-        {categories.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer ${
-                selectedCategory === 'all' ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
-              }`}
-            >
-              All
-            </button>
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors cursor-pointer capitalize ${
-                  selectedCategory === cat ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+      {/* Search + category filters */}
+      {assets.length > 0 && (
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative w-full sm:max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b] pointer-events-none" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search name, model, serial…"
+              aria-label="Search assets"
+              className={`${inputClass} pl-9`}
+            />
           </div>
-        )}
-      </div>
 
-      {/* Asset Grid */}
-      {loading ? (
-        <div className="text-center py-20 text-[#86868b] text-[14px] animate-pulse">Loading inventory...</div>
-      ) : assets.length === 0 ? (
-        <div className="text-center py-20 space-y-3">
-          <Package size={36} className="text-[#d2d2d7] mx-auto" />
-          <p className="text-[15px] font-semibold text-[#6e6e73]">No assets added yet</p>
-          <p className="text-[13px] text-[#86868b] max-w-sm mx-auto">
-            {canManage ? 'Click "Add asset" above to start building the inventory.' : 'The admin will add items here. Check back later.'}
-          </p>
+          {categories.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <FilterPill
+                active={selectedCategory === 'all'}
+                onClick={() => setSelectedCategory('all')}
+                activeClass="bg-[#0071e3] text-white"
+              >
+                All
+              </FilterPill>
+              {categories.map(cat => (
+                <FilterPill
+                  key={cat}
+                  active={selectedCategory === cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  activeClass="bg-[#0071e3] text-white"
+                >
+                  <span className="capitalize">{cat}</span>
+                </FilterPill>
+              ))}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Asset grid */}
+      {loading ? (
+        <LoadingState label="Loading inventory…" />
+      ) : assets.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No assets yet"
+          message={
+            canManage
+              ? 'Add your first instrument, microphone, or cable to start the register.'
+              : 'An admin will add items here. Check back later.'
+          }
+          action={canManage ? <Button icon={Plus} onClick={openAddAsset}>Add asset</Button> : undefined}
+        />
+      ) : filteredAssets.length === 0 ? (
+        <EmptyState
+          icon={SearchX}
+          title="No matching assets"
+          message="Try a different search term or clear the category filter."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+            >
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAssets.map(asset => {
-            const statusStyle = STATUS_STYLES[asset.status] || STATUS_STYLES.operational;
-            return (
-              <div key={asset.id} className="bg-white rounded-2xl border border-[#e8e8ed] p-5 space-y-3 group relative">
-                {/* Admin actions */}
-                {canManage && (
-                  <div className="absolute top-4 right-4 flex gap-1.5 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity">
-                    <button onClick={() => openEditAsset(asset)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#6e6e73] hover:text-[#1d1d1f] cursor-pointer transition-colors" title="Edit">
-                      <Edit size={12} />
-                    </button>
-                    <button onClick={() => setDeletingAssetId(asset.id)} className="p-1.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg text-[#ff3b30] hover:text-[#ff453a] cursor-pointer transition-colors" title="Delete">
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                )}
+        <div className={`${cardClass} overflow-hidden`}>
 
-                {/* Asset info */}
-                <div>
-                  <h4 className="text-[15px] font-semibold text-[#1d1d1f] leading-tight">{asset.name}</h4>
-                  {asset.model && <p className="text-[12px] text-[#86868b] mt-0.5">{asset.model}</p>}
-                </div>
+          {/* Column headers — desktop only */}
+          <div
+            className="hidden md:grid md:grid-cols-[minmax(0,2.2fr)_1fr_1.1fr_1fr_1.5fr_auto] gap-3 items-center
+                       px-4 py-2.5 bg-[#f5f5f7] border-b border-[#e8e8ed]
+                       text-[11px] font-semibold uppercase tracking-wide text-[#86868b]"
+            aria-hidden="true"
+          >
+            <span>Item</span>
+            <span>Category</span>
+            <span>Status</span>
+            <span>Location</span>
+            <span>Availability</span>
+            <span className="w-[92px]" />
+          </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {asset.category && (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
-                      {asset.category}
-                    </span>
-                  )}
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${statusStyle.bg} ${statusStyle.text}`}>
-                    {statusStyle.label}
-                  </span>
-                </div>
+          <ul className="divide-y divide-[#e8e8ed]">
+            {filteredAssets.map(asset => {
+              const statusStyle = ASSET_STATUS[asset.status] || ASSET_STATUS.operational;
+              const assetLogs = sessions.filter(s => s.assetId === asset.id);
+              const isExpanded = expandedAssetHistoryId === asset.id;
+              const activeSession = activeSessionFor(asset.id);
+              const hasDetails = Boolean(asset.serialNumber || asset.remarks || assetLogs.length > 0);
 
-                {asset.location && (
-                  <p className="text-[12px] text-[#86868b] flex items-center gap-1">
-                    <MapPin size={11} /> {asset.location}
-                  </p>
-                )}
+              return (
+                <li key={asset.id} className="group hover:bg-[#f5f5f7]/60 transition-colors">
+                  <div
+                    className="grid gap-x-3 gap-y-2 px-4 py-2
+                               md:grid-cols-[minmax(0,2.2fr)_1fr_1.1fr_1fr_1.5fr_auto] md:items-center"
+                  >
+                    {/* Item */}
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-[#1d1d1f] leading-tight truncate" title={asset.name}>
+                        {asset.name}
+                      </p>
+                      {asset.model && (
+                        <p className="text-[12px] text-[#86868b] truncate" title={asset.model}>{asset.model}</p>
+                      )}
+                    </div>
 
-                {asset.serialNumber && (
-                  <p className="text-[12px] text-[#86868b]">SN: {asset.serialNumber}</p>
-                )}
+                    {/* On mobile these three sit together as a wrapped badge row;
+                        on desktop `contents` promotes them into their own columns. */}
+                    <div className="flex flex-wrap items-center gap-2 md:contents">
+                      <span className="text-[12px] text-[#6e6e73] capitalize truncate" title={asset.category}>
+                        {asset.category || '—'}
+                      </span>
 
-                {/* Lending Status */}
-                {asset.lentTo ? (
-                  <div className="text-[13px] text-[#ff9f0a]">
-                    <span className="font-medium">Lent to: {asset.lentTo}</span>
-                    {asset.lentAt && (
-                      <span className="text-[12px] text-[#86868b] ml-2">since {formatDateTime(asset.lentAt)}</span>
-                    )}
-                  </div>
-                ) : asset.status === 'operational' && (
-                  <p className="text-[13px] text-[#34c759] flex items-center gap-1">
-                    <CheckCircle size={12} /> Available
-                  </p>
-                )}
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium w-fit ${statusStyle.bg} ${statusStyle.text}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusStyle.dot}`} aria-hidden="true" />
+                        {statusStyle.label}
+                      </span>
 
-                {asset.remarks && (
-                  <p className="text-[12px] text-[#86868b] italic border-t border-[#e8e8ed] pt-2">{asset.remarks}</p>
-                )}
+                      <span className="text-[12px] text-[#86868b] truncate" title={asset.location}>
+                        {asset.location || '—'}
+                      </span>
+                    </div>
 
-                {/* Per-Asset Lending History Toggle */}
-                {(() => {
-                  const assetLogs = sessions.filter(s => s.assetId === asset.id);
-                  const isExpanded = expandedAssetHistoryId === asset.id;
-                  if (assetLogs.length === 0) return null;
-                  return (
-                    <div className="border-t border-[#e8e8ed] pt-2">
+                    {/* Availability */}
+                    <div className="min-w-0 text-[12px]">
+                      {asset.lentTo ? (
+                        <>
+                          <p className="text-[#a86500] font-medium truncate" title={`Lent to ${asset.lentTo}`}>
+                            Lent to {asset.lentTo}
+                          </p>
+                          {asset.lentAt && (
+                            <p className="text-[#86868b] truncate">since {formatDateTime(asset.lentAt)}</p>
+                          )}
+                        </>
+                      ) : asset.status === 'operational' ? (
+                        <p className="text-[#1a7f37] font-medium flex items-center gap-1">
+                          <CheckCircle2 size={12} aria-hidden="true" /> Available
+                        </p>
+                      ) : (
+                        <p className="text-[#86868b]">Not available</p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 justify-start md:justify-end">
+                      {asset.lentTo && activeSession ? (
+                        <Button
+                          variant="secondary"
+                          icon={RotateCcw}
+                          onClick={() => openReturn(activeSession)}
+                          className="!px-2.5 !py-1 !text-[12px]"
+                        >
+                          Return
+                        </Button>
+                      ) : !asset.lentTo && asset.status === 'operational' ? (
+                        <Button
+                          onClick={() => openCheckout(asset.id)}
+                          className="!px-2.5 !py-1 !text-[12px]"
+                        >
+                          Check out
+                        </Button>
+                      ) : null}
+
+                      {canManage && (
+                        <>
+                          <button
+                            onClick={() => openEditAsset(asset)}
+                            aria-label={`Edit ${asset.name}`}
+                            className="p-1.5 rounded-lg text-[#6e6e73] hover:bg-[#e8e8ed] hover:text-[#1d1d1f] cursor-pointer transition-colors"
+                          >
+                            <Pencil size={13} aria-hidden="true" />
+                          </button>
+                          <button
+                            onClick={() => setAssetToDelete(asset)}
+                            aria-label={`Delete ${asset.name}`}
+                            className="p-1.5 rounded-lg text-[#ff3b30] hover:bg-[#ff3b30]/10 cursor-pointer transition-colors"
+                          >
+                            <Trash2 size={13} aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
+
                       <button
-                        type="button"
                         onClick={() => setExpandedAssetHistoryId(isExpanded ? null : asset.id)}
-                        className="flex items-center gap-1 text-[12px] text-[#0071e3] font-medium hover:underline cursor-pointer transition-colors"
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? 'Hide' : 'Show'} details for ${asset.name}`}
+                        disabled={!hasDetails}
+                        className="p-1.5 rounded-lg text-[#86868b] hover:bg-[#e8e8ed] hover:text-[#1d1d1f]
+                                   cursor-pointer transition-colors disabled:opacity-25 disabled:cursor-default"
                       >
-                        <Clock size={12} /> {isExpanded ? 'Hide Lending Log' : `Lending Log (${assetLogs.length})`}
+                        <ChevronDown
+                          size={15}
+                          aria-hidden="true"
+                          className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        />
                       </button>
+                    </div>
+                  </div>
 
-                      {isExpanded && (
-                        <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto pr-1">
-                          {assetLogs.map(log => (
-                            <div key={log.id} className="text-[11px] bg-[#f5f5f7] p-2.5 rounded-lg space-y-1 border border-[#e8e8ed]">
-                              <div className="flex justify-between items-center font-medium text-[#1d1d1f]">
-                                <span>Lent to: {log.studentName} {log.rollNumber ? `(${log.rollNumber})` : ''}</span>
-                                <span className={log.status === 'active' ? 'text-[#ff9f0a]' : 'text-[#34c759]'}>
-                                  {log.status === 'active' ? 'Active' : 'Returned'}
-                                </span>
+                  {/* Expanded detail: serial, remarks, full lending log */}
+                  {isExpanded && hasDetails && (
+                    <div className="px-4 pb-4 pt-1 bg-[#f5f5f7]/70 border-t border-[#e8e8ed] space-y-3">
+                      {(asset.serialNumber || asset.remarks) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] pt-3">
+                          {asset.serialNumber && (
+                            <p className="text-[#86868b]">
+                              <span className="font-medium text-[#6e6e73]">Serial:</span>{' '}
+                              <span className="break-all">{asset.serialNumber}</span>
+                            </p>
+                          )}
+                          {asset.remarks && (
+                            <p className="text-[#86868b] sm:col-span-2">
+                              <span className="font-medium text-[#6e6e73]">Remarks:</span>{' '}
+                              <span className="italic break-words">{asset.remarks}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {assetLogs.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#1d1d1f]">
+                            <Clock size={12} aria-hidden="true" /> Lending log ({assetLogs.length})
+                          </p>
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                            {assetLogs.map(log => (
+                              <div key={log.id} className="text-[11px] bg-white p-2.5 rounded-lg border border-[#e8e8ed] space-y-1">
+                                <div className="flex justify-between items-start gap-2 font-medium text-[#1d1d1f]">
+                                  <span className="break-words">
+                                    {log.studentName}
+                                    {log.rollNumber ? ` (${log.rollNumber})` : ''}
+                                  </span>
+                                  <span className={`shrink-0 ${log.status === 'active' ? 'text-[#a86500]' : 'text-[#1a7f37]'}`}>
+                                    {log.status === 'active' ? 'Out' : 'Returned'}
+                                  </span>
+                                </div>
+                                <dl className="text-[#86868b] space-y-0.5">
+                                  <div><dt className="inline font-medium text-[#6e6e73]">Issued by:</dt>{' '}<dd className="inline text-[#0071e3] font-medium">{log.lentBy || '—'}</dd></div>
+                                  <div><dt className="inline font-medium text-[#6e6e73]">Borrowed:</dt>{' '}<dd className="inline">{formatDateTime(log.checkInTime)}</dd></div>
+                                  {log.checkOutTime && (
+                                    <div><dt className="inline font-medium text-[#6e6e73]">Returned:</dt>{' '}<dd className="inline">{formatDateTime(log.checkOutTime)}</dd></div>
+                                  )}
+                                  {log.purpose && (
+                                    <div><dt className="inline font-medium text-[#6e6e73]">Purpose:</dt>{' '}<dd className="inline">{log.purpose}</dd></div>
+                                  )}
+                                </dl>
+                                {log.notes && <p className="italic text-[#86868b] break-words">“{log.notes}”</p>}
                               </div>
-                              <div className="text-[#86868b] space-y-0.5">
-                                <div><strong className="text-[#6e6e73]">Issued / Lent by (Student):</strong> <span className="text-[#0071e3] font-medium">{log.lentBy || currentUser.displayName || currentUser.email}</span></div>
-                                <div><strong className="text-[#6e6e73]">Borrowed Date:</strong> {formatDateTime(log.checkInTime)}</div>
-                                {log.checkOutTime && <div><strong className="text-[#6e6e73]">Returned Date:</strong> {formatDateTime(log.checkOutTime)}</div>}
-                                {log.purpose && <div><strong className="text-[#6e6e73]">Purpose:</strong> {log.purpose}</div>}
-                                {log.notes && <div className="italic text-[#86868b]">"{log.notes}"</div>}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
-                  );
-                })()}
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-                {/* Delete confirmation */}
-                {deletingAssetId === asset.id && (
-                  <div className="p-3 bg-[#ff3b30]/5 border border-[#ff3b30]/20 rounded-xl flex items-center justify-between">
-                    <span className="text-[13px] text-[#ff3b30] font-medium">Delete this asset?</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleDeleteAsset(asset.id)} className="bg-[#ff3b30] hover:bg-[#ff453a] text-white rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">Yes</button>
-                      <button onClick={() => setDeletingAssetId(null)} className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors">No</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <div className="px-4 py-2.5 bg-[#f5f5f7] border-t border-[#e8e8ed] text-[12px] text-[#86868b]">
+            Showing {filteredAssets.length} of {assets.length} item{assets.length === 1 ? '' : 's'}
+          </div>
         </div>
       )}
 
-      {/* Lending & Return History */}
+      {/* Lending & return history */}
       {sessions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-5">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <section className={`${cardClass} p-5 sm:p-6 space-y-5`} aria-labelledby="lending-history">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
             <div>
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                Lending & Return Logbook History
-              </h3>
-              <p className="text-[12px] text-[#86868b] mt-0.5">Track borrowing dates, active checkouts, and return timestamps</p>
+              <h3 id="lending-history" className="text-[17px] font-semibold text-[#1d1d1f]">Lending &amp; return history</h3>
+              <p className="text-[12px] text-[#86868b] mt-0.5">Borrow dates, active checkouts, and return timestamps</p>
             </div>
-            
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
-              {/* Asset filter select */}
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <label className="sr-only" htmlFor="history-asset-filter">Filter by instrument</label>
               <select
+                id="history-asset-filter"
                 value={historyAssetFilter}
                 onChange={(e) => setHistoryAssetFilter(e.target.value)}
-                className="bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-1.5 text-[12px] text-[#1d1d1f] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] cursor-pointer"
+                className={`${selectClass} !py-1.5 !text-[13px] sm:max-w-[200px]`}
               >
-                <option value="all">All Instruments</option>
-                {assets.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                <option value="all">All instruments</option>
+                {historyAssetOptions.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
                 ))}
               </select>
 
-              {/* Status filter */}
               <div className="flex items-center gap-1">
                 {(['active', 'completed', 'all'] as const).map(f => (
-                  <button
+                  <FilterPill
                     key={f}
+                    active={sessionFilter === f}
                     onClick={() => setSessionFilter(f)}
-                    className={`px-3 py-1.5 rounded-full text-[12px] font-medium capitalize transition-colors cursor-pointer ${
-                      sessionFilter === f ? 'bg-[#0071e3] text-white' : 'bg-[#e8e8ed] text-[#6e6e73] hover:bg-[#d2d2d7]'
-                    }`}
+                    activeClass="bg-[#0071e3] text-white"
                   >
-                    {f === 'active' ? 'Active' : f === 'completed' ? 'Returned' : 'All'}
-                  </button>
+                    {f === 'active' ? 'Out' : f === 'completed' ? 'Returned' : 'All'}
+                  </FilterPill>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
             {filteredSessions.length === 0 ? (
-              <p className="text-center py-8 text-[#86868b] text-[13px]">No matching borrowing history found.</p>
+              <p className="text-center py-10 text-[#86868b] text-[13px]">No lending records match these filters.</p>
             ) : (
               filteredSessions.map(session => (
-                <div key={session.id} className="p-4 bg-[#f5f5f7] rounded-xl text-[13px] space-y-2 border border-[#e8e8ed]">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                    <div>
-                      <span className="font-semibold text-[#1d1d1f] text-[14px]">{session.assetName || session.assetId}</span>
-                    </div>
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 self-start sm:self-auto ${
-                      session.status === 'active'
-                        ? 'bg-[#ff9f0a]/10 text-[#ff9f0a]'
-                        : 'bg-[#34c759]/10 text-[#34c759]'
+                <article key={session.id} className="p-4 bg-[#f5f5f7] rounded-xl border border-[#e8e8ed] space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 className="font-semibold text-[#1d1d1f] text-[14px] break-words">
+                      {session.assetName || session.assetId}
+                    </h4>
+                    <span className={`self-start px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0 ${
+                      session.status === 'active' ? 'bg-[#ff9f0a]/12 text-[#a86500]' : 'bg-[#34c759]/10 text-[#1a7f37]'
                     }`}>
-                      {session.status === 'active' ? 'Currently Lent' : 'Returned'}
+                      {session.status === 'active' ? 'Currently out' : 'Returned'}
                     </span>
                   </div>
 
-                  {/* Issuer & Borrower Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] bg-white/70 p-3 rounded-lg border border-[#e8e8ed]">
                     <div>
-                      <span className="font-semibold text-[#1d1d1f]">Issued / Lent by (Student): </span>
-                      <span className="text-[#0071e3] font-medium">{session.lentBy || currentUser.displayName || currentUser.email}</span>
+                      <dt className="text-[#86868b]">Issued by</dt>
+                      <dd className="text-[#0071e3] font-medium break-words">{session.lentBy || '—'}</dd>
                     </div>
                     <div>
-                      <span className="font-semibold text-[#1d1d1f]">Borrowed by (Student): </span>
-                      <span className="text-[#1d1d1f] font-medium">{session.studentName}</span>
-                      {session.rollNumber && <span className="text-[#86868b] ml-1">({session.rollNumber})</span>}
-                    </div>
-                  </div>
-
-                  {/* Dates: Borrowed & Returned */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] text-[#6e6e73] bg-white/60 p-2.5 rounded-lg border border-[#e8e8ed]">
-                    <div>
-                      <span className="font-semibold text-[#1d1d1f]">Borrowed Date: </span>
-                      <span>{formatDateTime(session.checkInTime)}</span>
+                      <dt className="text-[#86868b]">Borrowed by</dt>
+                      <dd className="text-[#1d1d1f] font-medium break-words">
+                        {session.studentName}
+                        {session.rollNumber && <span className="text-[#86868b] font-normal"> ({session.rollNumber})</span>}
+                      </dd>
                     </div>
                     <div>
-                      <span className="font-semibold text-[#1d1d1f]">Returned Date: </span>
-                      <span>{session.checkOutTime ? formatDateTime(session.checkOutTime) : <em className="text-[#ff9f0a] not-italic font-medium">Still out with borrower</em>}</span>
+                      <dt className="text-[#86868b]">Borrowed on</dt>
+                      <dd className="text-[#1d1d1f]">{formatDateTime(session.checkInTime)}</dd>
                     </div>
-                  </div>
-
-                  {session.purpose && (
-                    <p className="text-[12px] text-[#6e6e73]">
-                      <span className="font-semibold text-[#1d1d1f]">Purpose: </span>
-                      <span>{session.purpose}</span>
-                    </p>
-                  )}
+                    <div>
+                      <dt className="text-[#86868b]">Returned on</dt>
+                      <dd className={session.checkOutTime ? 'text-[#1d1d1f]' : 'text-[#a86500] font-medium'}>
+                        {session.checkOutTime ? formatDateTime(session.checkOutTime) : 'Still out'}
+                      </dd>
+                    </div>
+                    {session.purpose && (
+                      <div className="sm:col-span-2">
+                        <dt className="text-[#86868b]">Purpose</dt>
+                        <dd className="text-[#1d1d1f] break-words">{session.purpose}</dd>
+                      </div>
+                    )}
+                  </dl>
 
                   {session.notes && (
-                    <p className="text-[12px] text-[#86868b] italic bg-white/70 p-2 rounded-lg border border-[#e8e8ed]">
-                      "{session.notes}"
+                    <p className="text-[12px] text-[#86868b] italic bg-white/70 p-2.5 rounded-lg border border-[#e8e8ed] break-words">
+                      “{session.notes}”
                     </p>
                   )}
 
-                  {/* Return button for active sessions */}
                   {session.status === 'active' && (
-                    returningSessionId === session.id ? (
-                      <div className="pt-2 border-t border-[#e8e8ed] space-y-2">
-                        <input
-                          type="text"
-                          value={returnNotes}
-                          onChange={(e) => setReturnNotes(e.target.value)}
-                          placeholder="Return notes (optional)..."
-                          className="w-full px-3 py-2.5 bg-white border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button onClick={() => setReturningSessionId(null)} className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
-                          <button onClick={() => handleReturn(session)} className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors flex items-center gap-1">
-                            <RotateCcw size={12} /> Confirm return
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setReturningSessionId(session.id)}
-                        className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors flex items-center gap-1 pt-1"
-                      >
-                        <RotateCcw size={12} /> Return item
-                      </button>
-                    )
+                    <Button variant="ghost" icon={RotateCcw} onClick={() => openReturn(session)} className="!px-2">
+                      Return item
+                    </Button>
                   )}
-                </div>
+                </article>
               ))
             )}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Add/Edit Asset Modal */}
-      {showAssetForm && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden font-sans max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">
-                {editingAssetId ? 'Edit asset' : 'Add new asset'}
-              </h3>
-              <button onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
-                <X size={18} />
-              </button>
+      {/* ── Add / edit asset ── */}
+      <Modal
+        open={showAssetForm}
+        onClose={closeAssetForm}
+        title={editingAssetId ? 'Edit asset' : 'Add new asset'}
+        description={editingAssetId ? undefined : 'Register a new item in the studio inventory.'}
+      >
+        <form onSubmit={handleAssetSubmit} className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className={labelClass} htmlFor="asset-name">Name <span className="text-[#ff3b30]">*</span></label>
+            <input
+              id="asset-name"
+              type="text"
+              value={assetForm.name}
+              onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+              placeholder="e.g. Yamaha Keyboard"
+              required
+              className={inputClass}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="asset-category">Category <span className="text-[#ff3b30]">*</span></label>
+              <input
+                id="asset-category"
+                type="text"
+                list="category-suggestions"
+                value={assetForm.category}
+                onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
+                placeholder="e.g. Instrument"
+                required
+                className={inputClass}
+              />
+              <datalist id="category-suggestions">
+                {categories.map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
+            <div>
+              <label className={labelClass} htmlFor="asset-status">Status <span className="text-[#ff3b30]">*</span></label>
+              <select
+                id="asset-status"
+                value={assetForm.status}
+                onChange={(e) => setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })}
+                className={selectClass}
+              >
+                <option value="operational">Operational</option>
+                <option value="needs_repair">Needs repair</option>
+                <option value="maintenance">Under maintenance</option>
+                <option value="missing">Missing</option>
+              </select>
+            </div>
+          </div>
 
-            <form onSubmit={handleAssetSubmit} className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Name *</label>
-                <input type="text" value={assetForm.name} onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-                  placeholder="e.g. Yamaha Keyboard" required
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
-              </div>
+          <div>
+            <label className={labelClass} htmlFor="asset-model">Model</label>
+            <input
+              id="asset-model"
+              type="text"
+              value={assetForm.model}
+              onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
+              placeholder="e.g. P-125"
+              className={inputClass}
+            />
+          </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Category *</label>
-                  <input type="text" list="category-suggestions" value={assetForm.category} onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
-                    placeholder="e.g. Instrument" required
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
-                  <datalist id="category-suggestions">
-                    {categories.map(c => <option key={c} value={c} />)}
-                  </datalist>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Status *</label>
-                  <select value={assetForm.status} onChange={(e) => setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })}
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
-                    <option value="operational">Operational</option>
-                    <option value="needs_repair">Needs repair</option>
-                    <option value="maintenance">Under maintenance</option>
-                    <option value="missing">Missing</option>
-                  </select>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="asset-serial">Serial number</label>
+              <input
+                id="asset-serial"
+                type="text"
+                value={assetForm.serialNumber}
+                onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
+                placeholder="e.g. SN-12345"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="asset-location">Location</label>
+              <input
+                id="asset-location"
+                type="text"
+                value={assetForm.location}
+                onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
+                placeholder="e.g. Main Studio"
+                className={inputClass}
+              />
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Model</label>
-                <input type="text" value={assetForm.model} onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
-                  placeholder="e.g. P-125"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
-              </div>
+          <div>
+            <label className={labelClass} htmlFor="asset-remarks">Remarks</label>
+            <textarea
+              id="asset-remarks"
+              value={assetForm.remarks}
+              onChange={(e) => setAssetForm({ ...assetForm, remarks: e.target.value })}
+              placeholder="Any notes about this item…"
+              className={textareaClass}
+            />
+          </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Serial number</label>
-                  <input type="text" value={assetForm.serialNumber} onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
-                    placeholder="e.g. SN-12345"
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Location</label>
-                  <input type="text" value={assetForm.location} onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
-                    placeholder="e.g. Main Studio"
-                    className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" />
-                </div>
-              </div>
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">
+            <Button type="button" variant="secondary" onClick={closeAssetForm}>Cancel</Button>
+            <Button type="submit" loading={busy}>
+              {editingAssetId ? 'Save changes' : 'Add asset'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Remarks</label>
-                <textarea value={assetForm.remarks} onChange={(e) => setAssetForm({ ...assetForm, remarks: e.target.value })}
-                  placeholder="Any notes about this item..."
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] h-20 resize-none" />
-              </div>
+      {/* ── Checkout ── */}
+      <Modal
+        open={showCheckoutForm}
+        onClose={() => setShowCheckoutForm(false)}
+        title="Check out an item"
+        description="Record who is taking the item and why."
+        size="sm"
+      >
+        <form onSubmit={handleCheckout} className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className={labelClass} htmlFor="checkout-item">Item <span className="text-[#ff3b30]">*</span></label>
+            <select
+              id="checkout-item"
+              value={checkoutAssetId}
+              onChange={(e) => setCheckoutAssetId(e.target.value)}
+              required
+              className={selectClass}
+            >
+              <option value="">Choose an item…</option>
+              {availableAssets.map(a => (
+                <option key={a.id} value={a.id}>{a.name}{a.category ? ` — ${a.category}` : ''}</option>
+              ))}
+            </select>
+          </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
-                <button type="button" onClick={() => { setShowAssetForm(false); setEditingAssetId(null); }}
-                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
-                <button type="submit"
-                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors">
-                  {editingAssetId ? 'Save changes' : 'Add asset'}
-                </button>
-              </div>
-            </form>
+          <div>
+            <label className={labelClass} htmlFor="checkout-lender">Issued by</label>
+            <input
+              id="checkout-lender"
+              type="text"
+              value={currentUser.displayName || currentUser.email}
+              disabled
+              className={`${inputClass} font-medium`}
+            />
+            <p className="text-[12px] text-[#86868b] mt-1">Recorded automatically from your account.</p>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="checkout-borrower">Borrower's name <span className="text-[#ff3b30]">*</span></label>
+            <input
+              id="checkout-borrower"
+              type="text"
+              value={checkoutName}
+              onChange={(e) => setCheckoutName(e.target.value)}
+              required
+              placeholder="Who are you giving it to?"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="checkout-roll">Roll number <span className="text-[#86868b] font-normal">(optional)</span></label>
+            <input
+              id="checkout-roll"
+              type="text"
+              value={checkoutRoll}
+              onChange={(e) => setCheckoutRoll(e.target.value)}
+              placeholder="e.g. 20BCSE01"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="checkout-purpose">Purpose <span className="text-[#ff3b30]">*</span></label>
+            <input
+              id="checkout-purpose"
+              type="text"
+              list="purpose-options"
+              value={checkoutPurpose}
+              onChange={(e) => setCheckoutPurpose(e.target.value)}
+              placeholder="e.g. Composition, Practice, Recording"
+              required
+              className={inputClass}
+            />
+            <datalist id="purpose-options">
+              <option value="Composition" />
+              <option value="Recording" />
+              <option value="Mixing &amp; Mastering" />
+              <option value="Practice" />
+            </datalist>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">
+            <Button type="button" variant="secondary" onClick={() => setShowCheckoutForm(false)}>Cancel</Button>
+            <Button type="submit" loading={busy}>Check out</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Return ── */}
+      <Modal
+        open={Boolean(returningSession)}
+        onClose={() => setReturningSession(null)}
+        title="Confirm return"
+        description={returningSession ? `${returningSession.assetName} from ${returningSession.studentName}` : undefined}
+        size="sm"
+      >
+        <form onSubmit={handleReturn} className="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label className={labelClass} htmlFor="return-notes">Condition notes <span className="text-[#86868b] font-normal">(optional)</span></label>
+            <textarea
+              id="return-notes"
+              value={returnNotes}
+              onChange={(e) => setReturnNotes(e.target.value)}
+              placeholder="Any damage, missing cables, or observations…"
+              className={textareaClass}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">
+            <Button type="button" variant="secondary" onClick={() => setReturningSession(null)}>Cancel</Button>
+            <Button type="submit" icon={RotateCcw} loading={busy}>Confirm return</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Delete asset ── */}
+      <Modal
+        open={Boolean(assetToDelete)}
+        onClose={() => setAssetToDelete(null)}
+        title="Delete asset"
+        size="sm"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-[14px] text-[#1d1d1f] leading-relaxed">
+            Permanently remove <span className="font-semibold">{assetToDelete?.name}</span> from the inventory?
+            Its past lending records will be kept.
+          </p>
+
+          {assetToDelete?.lentTo && (
+            <p className="text-[13px] text-[#a86500] bg-[#ff9f0a]/8 border border-[#ff9f0a]/20 rounded-xl p-3 leading-relaxed">
+              This item is currently lent to <span className="font-semibold">{assetToDelete.lentTo}</span>.
+              Mark it returned first so the log stays accurate.
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">
+            <Button type="button" variant="secondary" onClick={() => setAssetToDelete(null)}>Cancel</Button>
+            <Button type="button" variant="danger" icon={Trash2} loading={busy} onClick={handleDeleteAsset}>
+              Delete
+            </Button>
           </div>
         </div>
-      )}
-
-      {/* Checkout Modal */}
-      {showCheckoutForm && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden font-sans max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-[#e8e8ed] flex justify-between items-center">
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f]">Checkout item</h3>
-              <button onClick={() => setShowCheckoutForm(false)} className="text-[#86868b] hover:text-[#1d1d1f] cursor-pointer transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCheckout} className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Select item *</label>
-                <select value={checkoutAssetId} onChange={(e) => setCheckoutAssetId(e.target.value)} required
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] cursor-pointer">
-                  <option value="">Choose an item...</option>
-                  {availableAssets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.category})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Issued / Lent by (Logged-in Student)</label>
-                <input 
-                  type="text" 
-                  value={currentUser.displayName || currentUser.email} 
-                  disabled 
-                  className="w-full px-3 py-2.5 bg-[#e8e8ed] border border-[#d2d2d7] rounded-lg text-[14px] text-[#6e6e73] cursor-not-allowed select-none font-medium" 
-                />
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Whom are you giving it to? (Borrower Name) *</label>
-                <input 
-                  type="text" 
-                  value={checkoutName} 
-                  onChange={(e) => setCheckoutName(e.target.value)} 
-                  required 
-                  placeholder="Enter the borrower's name"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
-                />
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Roll number (Optional)</label>
-                <input 
-                  type="text" 
-                  value={checkoutRoll} 
-                  onChange={(e) => setCheckoutRoll(e.target.value)} 
-                  placeholder="e.g. 20BCSE01 (Optional)"
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
-                />
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-[#1d1d1f] mb-1.5">Purpose *</label>
-                <input 
-                  type="text" 
-                  list="purpose-options"
-                  value={checkoutPurpose} 
-                  onChange={(e) => setCheckoutPurpose(e.target.value)}
-                  placeholder="e.g. Composition, Practice, Recording..."
-                  required
-                  className="w-full px-3 py-2.5 bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3] text-[14px] text-[#1d1d1f] placeholder:text-[#86868b]" 
-                />
-                <datalist id="purpose-options">
-                  <option value="Composition" />
-                  <option value="Recording" />
-                  <option value="Mixing & Mastering" />
-                  <option value="Practice" />
-                </datalist>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#e8e8ed]">
-                <button type="button" onClick={() => setShowCheckoutForm(false)}
-                  className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors">Cancel</button>
-                <button type="submit"
-                  className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2 text-[14px] font-medium cursor-pointer transition-colors">Checkout</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

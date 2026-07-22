@@ -1,41 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from '../lib/firebase';
-import { Shield, UserPlus, Trash2, Edit, Users, Mail, CheckCircle, Crown, ChevronDown, X, AlertTriangle } from 'lucide-react';
+import { Trash2, Users } from 'lucide-react';
 import type { AllowedUser, UserRole } from '../types';
+import { ROLE_META } from '../lib/stages';
+import { formatDate, nameFromEmail } from '../lib/format';
+import { firestoreErrorMessage } from '../lib/errors';
+import Modal from './ui/Modal';
+import { useToast } from './ui/Toast';
+import {
+  Button,
+  EmptyState,
+  LoadingState,
+  cardClass,
+  inputClass,
+  labelClass,
+  selectClass,
+} from './ui/Primitives';
 
 const MASTER_EMAIL = 'koushikv@sssihl.edu.in';
 
-const ROLE_CONFIG: Record<UserRole, { label: string; bg: string; text: string }> = {
-  admin:        { label: 'Admin',        bg: 'bg-[#0071e3]/10', text: 'text-[#0071e3]' },
-  junior_admin: { label: 'Junior admin', bg: 'bg-[#ff9f0a]/10', text: 'text-[#ff9f0a]' },
-  member:       { label: 'Student',      bg: 'bg-[#34c759]/10', text: 'text-[#34c759]' },
-};
+const ROLE_OPTIONS: { value: UserRole; label: string; hint: string }[] = [
+  { value: 'admin', label: 'Admin', hint: 'Full access, including user management' },
+  { value: 'junior_admin', label: 'Junior admin', hint: 'Can manage inventory, projects, and routines' },
+  { value: 'member', label: 'Student', hint: 'Can check items out and log progress' },
+];
 
 interface AdminControlsProps {
   currentUserEmail: string;
 }
 
 export default function AdminControls({ currentUserEmail }: AdminControlsProps) {
+  const toast = useToast();
   const [users, setUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  // Add-user form state
+  // Add-user form
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('member');
 
-  // Inline edit state
+  // Inline role editing
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
   const [editRole, setEditRole] = useState<UserRole>('member');
 
-  // Delete confirmation state
-  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState<string | null>(null);
+  // Removal confirmation
+  const [userToRemove, setUserToRemove] = useState<AllowedUser | null>(null);
 
   useEffect(() => {
-    const ref = collection(db, 'allowed_users');
-    const unsubscribe = onSnapshot(ref, (snapshot) => {
+    return onSnapshot(collection(db, 'allowed_users'), (snapshot) => {
       const list: AllowedUser[] = [];
       snapshot.forEach((d) => {
         const data = d.data();
@@ -48,45 +61,42 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
           addedAt: data.addedAt ?? '',
         });
       });
-      // Sort: master first, then admins, then junior_admins, then members
       const rolePriority: Record<UserRole, number> = { admin: 0, junior_admin: 1, member: 2 };
       list.sort((a, b) => {
         if (a.email === MASTER_EMAIL) return -1;
         if (b.email === MASTER_EMAIL) return 1;
-        return rolePriority[a.role] - rolePriority[b.role];
+        const byRole = rolePriority[a.role] - rolePriority[b.role];
+        return byRole !== 0 ? byRole : (a.name || a.email).localeCompare(b.name || b.email);
       });
       setUsers(list);
       setLoading(false);
     }, (err) => {
       console.error('Firestore allowed_users error:', err);
+      toast.error(firestoreErrorMessage(err, 'Could not load the user list.'));
       setLoading(false);
     });
+  }, [toast]);
 
-    return () => unsubscribe();
-  }, []);
+  const adminCount = useMemo(() => users.filter(u => u.role === 'admin').length, [users]);
 
-  const flash = (msg: string, type: 'success' | 'error' = 'success') => {
-    if (type === 'success') {
-      setSuccessMsg(msg);
-      setErrorMsg('');
-    } else {
-      setErrorMsg(msg);
-      setSuccessMsg('');
-    }
-    setTimeout(() => { setSuccessMsg(''); setErrorMsg(''); }, 4000);
-  };
+  /** Prevents removing the last admin and locking everyone out of Settings. */
+  const wouldOrphanAdmins = (user: AllowedUser, nextRole?: UserRole) =>
+    user.role === 'admin' && adminCount <= 1 && nextRole !== 'admin';
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
+
     const email = newEmail.trim().toLowerCase();
     const name = newName.trim();
     if (!email || !name) return;
 
-    if (users.some((u) => u.email === email)) {
-      flash(`USER ${email} ALREADY EXISTS`, 'error');
+    if (users.some(u => u.email === email)) {
+      toast.error(`${email} is already authorized.`);
       return;
     }
 
+    setBusy(true);
     try {
       await setDoc(doc(db, 'allowed_users', email), {
         email,
@@ -95,263 +105,270 @@ export default function AdminControls({ currentUserEmail }: AdminControlsProps) 
         addedBy: currentUserEmail,
         addedAt: new Date().toISOString(),
       });
-      flash(`✓ AUTHORIZED: ${email} added as ${newRole.toUpperCase()}`);
+      toast.success(`${name} added as ${ROLE_META[newRole].label}.`);
       setNewEmail('');
       setNewName('');
       setNewRole('member');
     } catch (err) {
       console.error('Error adding user:', err);
-      flash('FAILED TO ADD USER', 'error');
+      toast.error(firestoreErrorMessage(err, 'Could not add the user. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleUpdateRole = async (email: string, role: UserRole) => {
-    if (email === MASTER_EMAIL) return;
+  const handleUpdateRole = async (user: AllowedUser, role: UserRole) => {
+    if (user.email === MASTER_EMAIL || busy) return;
+
+    if (role === user.role) {
+      setEditingEmail(null);
+      return;
+    }
+    if (wouldOrphanAdmins(user, role)) {
+      toast.error('At least one admin must remain. Promote someone else first.');
+      return;
+    }
+
+    setBusy(true);
     try {
-      await updateDoc(doc(db, 'allowed_users', email), { role });
-      flash(`✓ ROLE UPDATED: ${email} -> ${role.toUpperCase()}`);
+      await updateDoc(doc(db, 'allowed_users', user.email), { role });
+      toast.success(`${user.name || user.email} is now ${ROLE_META[role].label}.`);
       setEditingEmail(null);
     } catch (err) {
       console.error('Error updating role:', err);
-      flash('FAILED TO UPDATE ROLE', 'error');
+      toast.error(firestoreErrorMessage(err, 'Could not update the role. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleDeleteUser = async (email: string) => {
-    if (email === MASTER_EMAIL) return;
+  const handleRemoveUser = async () => {
+    if (!userToRemove || userToRemove.email === MASTER_EMAIL || busy) return;
+
+    if (wouldOrphanAdmins(userToRemove)) {
+      toast.error('At least one admin must remain. Promote someone else first.');
+      setUserToRemove(null);
+      return;
+    }
+
+    setBusy(true);
     try {
-      await deleteDoc(doc(db, 'allowed_users', email));
-      flash(`✓ REVOKED: ${email} removed from allowed users`);
-      setConfirmDeleteEmail(null);
+      await deleteDoc(doc(db, 'allowed_users', userToRemove.email));
+      toast.success(`Access revoked for ${userToRemove.name || userToRemove.email}.`);
+      setUserToRemove(null);
     } catch (err) {
       console.error('Error deleting user:', err);
-      flash('FAILED TO REMOVE USER', 'error');
+      toast.error(firestoreErrorMessage(err, 'Could not remove the user. Please try again.'));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-[#e8e8ed] p-6 space-y-6 font-sans max-w-2xl mx-auto">
-      {/* -- Header -- */}
-      <div className="flex items-center justify-between">
+    <div className={`${cardClass} p-5 sm:p-6 space-y-6 font-sans`}>
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-[22px] font-bold text-[#1d1d1f]">
-            User management
-          </h3>
-          <p className="text-[13px] text-[#86868b] mt-0.5">
-            Manage authorized accounts and role permissions
-          </p>
+          <h3 className="text-[20px] font-bold tracking-tight text-[#1d1d1f]">User management</h3>
+          <p className="text-[13px] text-[#86868b] mt-0.5">Control who can sign in and what they can do</p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#f5f5f7] rounded-full">
-          <span className="text-[13px] font-medium text-[#1d1d1f]">{users.length}</span>
-          <span className="text-[12px] text-[#86868b]">users</span>
-        </div>
+        <span className="shrink-0 flex items-baseline gap-1.5 px-3 py-1 bg-[#f5f5f7] rounded-full">
+          <span className="text-[13px] font-semibold text-[#1d1d1f] tabular-nums">{users.length}</span>
+          <span className="text-[12px] text-[#86868b]">{users.length === 1 ? 'user' : 'users'}</span>
+        </span>
       </div>
 
-      {/* -- Flash Messages -- */}
-      {successMsg && (
-        <div className="p-3 bg-[#34c759]/10 text-[#34c759] text-[13px] rounded-xl flex items-center gap-2">
-          <CheckCircle size={14} />
-          <span className="font-medium">{successMsg}</span>
-        </div>
-      )}
-      {errorMsg && (
-        <div className="p-3 bg-[#ff3b30]/10 text-[#ff3b30] text-[13px] rounded-xl flex items-center gap-2">
-          <AlertTriangle size={14} />
-          <span className="font-medium">{errorMsg}</span>
-        </div>
-      )}
-
-      {/* -- Add User Form -- */}
+      {/* Add user */}
       <form onSubmit={handleAddUser} className="space-y-4 bg-[#f5f5f7] rounded-2xl p-5">
-        <span className="text-[17px] font-semibold text-[#1d1d1f]">Add new user</span>
+        <h4 className="text-[15px] font-semibold text-[#1d1d1f]">Add a user</h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Email */}
           <div>
-            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Email</label>
+            <label className={labelClass} htmlFor="new-user-email">Email <span className="text-[#ff3b30]">*</span></label>
             <input
+              id="new-user-email"
               type="email"
               placeholder="user@sssihl.edu.in"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               required
-              className="w-full bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
+              autoComplete="off"
+              className={`${inputClass} !bg-white`}
             />
           </div>
-
-          {/* Name */}
           <div>
-            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Name</label>
+            <label className={labelClass} htmlFor="new-user-name">Name <span className="text-[#ff3b30]">*</span></label>
             <input
+              id="new-user-name"
               type="text"
               placeholder="Full name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               required
-              className="w-full bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 text-[14px] text-[#1d1d1f] placeholder:text-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
+              autoComplete="off"
+              className={`${inputClass} !bg-white`}
             />
           </div>
         </div>
 
-        <div className="flex items-end gap-3">
-          {/* Role Dropdown */}
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">
-            <label className="block text-[12px] text-[#86868b] font-medium mb-1.5">Role</label>
-            <div className="relative">
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value as UserRole)}
-                className="w-full appearance-none bg-white border border-[#d2d2d7] rounded-lg px-3 py-2.5 pr-8 text-[14px] text-[#1d1d1f] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
-              >
-                <option value="admin">Admin</option>
-                <option value="junior_admin">Junior admin</option>
-                <option value="member">Student</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-3 text-[#86868b] pointer-events-none" />
-            </div>
+            <label className={labelClass} htmlFor="new-user-role">Role</label>
+            <select
+              id="new-user-role"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as UserRole)}
+              className={`${selectClass} !bg-white`}
+            >
+              {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+            <p className="text-[12px] text-[#86868b] mt-1.5">
+              {ROLE_OPTIONS.find(r => r.value === newRole)?.hint}
+            </p>
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="bg-[#0071e3] hover:bg-[#0077ED] text-white rounded-full px-5 py-2.5 text-[14px] font-medium cursor-pointer transition-colors whitespace-nowrap"
-          >
+          <Button type="submit" loading={busy} className="!px-5 !py-2.5 !text-[14px] sm:mb-7">
             Add user
-          </button>
+          </Button>
         </div>
       </form>
 
-      {/* -- User List -- */}
+      {/* User list */}
       <div className="space-y-3">
-        <span className="text-[17px] font-semibold text-[#1d1d1f]">
-          All users
-        </span>
+        <h4 className="text-[15px] font-semibold text-[#1d1d1f]">All users</h4>
 
         {loading ? (
-          <p className="text-[#86868b] animate-pulse py-8 text-center text-[14px]">
-            Loading users…
-          </p>
+          <LoadingState label="Loading users…" />
         ) : users.length === 0 ? (
-          <p className="text-[#86868b] py-8 text-center text-[14px]">
-            No users registered yet
-          </p>
+          <EmptyState icon={Users} title="No users registered yet" message="Add the first account using the form above." />
         ) : (
-          <div className="rounded-2xl border border-[#e8e8ed] max-h-80 overflow-y-auto divide-y divide-[#e8e8ed]">
-            {users.map((user) => {
+          <ul className="rounded-2xl border border-[#e8e8ed] max-h-96 overflow-y-auto divide-y divide-[#e8e8ed]">
+            {users.map(user => {
               const isMaster = user.email === MASTER_EMAIL;
-              const roleStyle = ROLE_CONFIG[user.role];
+              const isSelf = user.email === currentUserEmail.toLowerCase();
+              const roleStyle = ROLE_META[user.role] || ROLE_META.member;
               const isEditing = editingEmail === user.email;
-              const isConfirmingDelete = confirmDeleteEmail === user.email;
 
               return (
-                <div
-                  key={user.email}
-                  className="flex items-center justify-between gap-3 px-4 py-3 group hover:bg-[#f5f5f7] transition-colors"
-                >
-                  {/* Left: user info */}
+                <li key={user.email} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 group hover:bg-[#f5f5f7] transition-colors">
+
+                  {/* Identity */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* Avatar circle */}
-                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold ${
-                      isMaster
-                        ? 'bg-[#0071e3]/10 text-[#0071e3]'
-                        : 'bg-[#f5f5f7] text-[#6e6e73]'
+                    <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold ${
+                      isMaster ? 'bg-[#0071e3]/10 text-[#0071e3]' : 'bg-[#e8e8ed] text-[#6e6e73]'
                     }`}>
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
+                      {(user.name || user.email).charAt(0).toUpperCase()}
+                    </span>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[14px] font-medium text-[#1d1d1f] truncate">{user.name}</span>
-                        {/* Role badge */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[14px] font-medium text-[#1d1d1f] truncate">
+                          {user.name || nameFromEmail(user.email)}
+                        </span>
                         {isMaster ? (
-                          <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
+                          <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3]">
                             Owner
                           </span>
                         ) : (
-                          <span className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium ${roleStyle.bg} ${roleStyle.text}`}>
+                          <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${roleStyle.bg} ${roleStyle.text}`}>
                             {roleStyle.label}
+                          </span>
+                        )}
+                        {isSelf && (
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#e8e8ed] text-[#6e6e73]">
+                            You
                           </span>
                         )}
                       </div>
                       <span className="text-[12px] text-[#86868b] truncate block mt-0.5">{user.email}</span>
                       {user.addedBy && (
-                        <span className="text-[11px] text-[#86868b] mt-0.5 block truncate">
+                        <span className="text-[11px] text-[#86868b] block truncate mt-0.5">
                           Added by {user.addedBy}
+                          {user.addedAt && ` · ${formatDate(user.addedAt)}`}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: actions */}
+                  {/* Actions */}
                   {!isMaster && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* -- Inline Role Editor -- */}
+                    <div className="flex items-center gap-2 shrink-0 sm:pl-2">
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
+                        <>
+                          <label className="sr-only" htmlFor={`role-${user.email}`}>Role for {user.name || user.email}</label>
                           <select
+                            id={`role-${user.email}`}
                             value={editRole}
                             onChange={(e) => setEditRole(e.target.value as UserRole)}
-                            className="appearance-none bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-2.5 py-1.5 text-[13px] text-[#1d1d1f] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0071e3]/30 focus:border-[#0071e3]"
+                            className={`${selectClass} !py-1.5 !text-[13px] !bg-white`}
                           >
-                            <option value="admin">Admin</option>
-                            <option value="junior_admin">Junior admin</option>
-                            <option value="member">Student</option>
+                            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                           </select>
-                          <button
-                            onClick={() => handleUpdateRole(user.email, editRole)}
-                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors"
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleUpdateRole(user, editRole)}
+                            disabled={busy}
+                            className="!px-2"
                           >
                             Save
-                          </button>
-                          <button
-                            onClick={() => setEditingEmail(null)}
-                            className="text-[#86868b] hover:text-[#6e6e73] text-[13px] font-medium cursor-pointer transition-colors"
-                          >
+                          </Button>
+                          <Button variant="ghost" onClick={() => setEditingEmail(null)} className="!px-2 !text-[#86868b]">
                             Cancel
-                          </button>
-                        </div>
-                      ) : isConfirmingDelete ? (
-                        /* -- Delete Confirmation -- */
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] text-[#ff3b30] font-medium">Remove?</span>
-                          <button
-                            onClick={() => handleDeleteUser(user.email)}
-                            className="bg-[#ff3b30] hover:bg-[#ff453a] text-white rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
-                          >
-                            Yes
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteEmail(null)}
-                            className="bg-[#e8e8ed] hover:bg-[#d2d2d7] text-[#1d1d1f] rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        /* -- Default Actions (visible on hover) -- */
-                        <>
-                          <button
-                            onClick={() => { setEditingEmail(user.email); setEditRole(user.role); }}
-                            className="text-[#0071e3] hover:text-[#0077ED] text-[13px] font-medium cursor-pointer transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteEmail(user.email)}
-                            className="text-[#ff3b30] hover:text-[#ff453a] text-[13px] font-medium cursor-pointer transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100"
-                          >
-                            Remove
-                          </button>
+                          </Button>
                         </>
+                      ) : (
+                        <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            onClick={() => { setEditingEmail(user.email); setEditRole(user.role); }}
+                            className="!px-2"
+                          >
+                            Edit role
+                          </Button>
+                          <button
+                            onClick={() => setUserToRemove(user)}
+                            aria-label={`Remove ${user.name || user.email}`}
+                            className="p-1.5 rounded-full text-[#ff3b30] hover:bg-[#ff3b30]/10 transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={15} aria-hidden="true" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
+
+      {/* ── Remove user ── */}
+      <Modal
+        open={Boolean(userToRemove)}
+        onClose={() => setUserToRemove(null)}
+        title="Revoke access"
+        size="sm"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-[14px] text-[#1d1d1f] leading-relaxed">
+            Remove <span className="font-semibold">{userToRemove?.name || userToRemove?.email}</span> from the
+            authorized list? They will be signed out of the system on their next visit.
+          </p>
+          {userToRemove?.email === currentUserEmail.toLowerCase() && (
+            <p className="text-[13px] text-[#a86500] bg-[#ff9f0a]/8 border border-[#ff9f0a]/20 rounded-xl p-3 leading-relaxed">
+              This is your own account — you will lose access immediately.
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-4 border-t border-[#e8e8ed]">
+            <Button type="button" variant="secondary" onClick={() => setUserToRemove(null)}>Cancel</Button>
+            <Button type="button" variant="danger" icon={Trash2} loading={busy} onClick={handleRemoveUser}>
+              Revoke access
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
