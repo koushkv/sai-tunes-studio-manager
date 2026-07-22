@@ -75,10 +75,55 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // Projects. Managers own the lifecycle; any student may log stage progress.
+    // Projects follow an approval workflow. A student's submission is visible
+    // only to its author and the managers reviewing it until it is approved.
     match /projects/{projectId} {
-      allow read, update: if allowed();
-      allow create, delete: if isManager();
+      function approvalOf(data) {
+        return data.get('approval', 'approved');
+      }
+      function authorOf(data) {
+        return data.get('createdByEmail', '');
+      }
+
+      allow read: if isManager()
+                  || (allowed() && (approvalOf(resource.data) == 'approved'
+                                    || authorOf(resource.data) == callerEmail()));
+
+      // Managers publish directly. Students may only submit as 'pending',
+      // and only under their own name — nobody can self-approve.
+      allow create: if isManager()
+                    || (allowed()
+                        && approvalOf(request.resource.data) == 'pending'
+                        && authorOf(request.resource.data) == callerEmail());
+
+      allow update: if isManager()
+                    // Author revising their own submission — stays pending,
+                    // and editing an approved project sends it back to review.
+                    || (allowed()
+                        && authorOf(resource.data) == callerEmail()
+                        && authorOf(request.resource.data) == callerEmail()
+                        && approvalOf(request.resource.data) == 'pending')
+                    // Anyone whitelisted may log stage progress on a live
+                    // project without altering its approval state.
+                    || (allowed()
+                        && approvalOf(resource.data) == 'approved'
+                        && approvalOf(request.resource.data) == 'approved'
+                        && onlyChanges(['stage', 'updatedBy', 'updatedAt', 'notes', 'history']));
+
+      // Students may withdraw their own submission until it goes live.
+      allow delete: if isManager()
+                    || (allowed()
+                        && authorOf(resource.data) == callerEmail()
+                        && approvalOf(resource.data) != 'approved');
+    }
+
+    // Admin activity feed. Students generate entries by acting in the app but
+    // never read them; managers read and mark them as seen.
+    match /notifications/{notificationId} {
+      allow read: if isManager();
+      allow create: if allowed() && request.resource.data.readBy.size() == 0;
+      allow update: if isManager() && onlyChanges(['readBy']);
+      allow delete: if isManager();
     }
 
     // Maintenance routines. Any student may log a completion (lastDone +

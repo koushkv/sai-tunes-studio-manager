@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { db, collection, onSnapshot } from '../lib/firebase';
+import { db, collection, onSnapshot, query, where } from '../lib/firebase';
 import { Music, Users, Clock, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import type { MusicProject, ProjectStage, AllowedUser } from '../types';
 import { STAGES, getStage, stageProgress } from '../lib/stages';
@@ -30,7 +30,8 @@ export default function ProjectsPortfolio({ allowedUsers }: ProjectsPortfolioPro
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
 
   useEffect(() => {
-    return onSnapshot(collection(db, 'projects'), (snapshot) => {
+    // The Portfolio is the public archive — pending submissions never appear here.
+    return onSnapshot(query(collection(db, 'projects'), where('approval', '==', 'approved')), (snapshot) => {
       const list: MusicProject[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
@@ -45,6 +46,8 @@ export default function ProjectsPortfolio({ allowedUsers }: ProjectsPortfolioPro
           updatedAt: data.updatedAt || '',
           createdBy: data.createdBy || '',
           createdAt: data.createdAt || '',
+          createdByEmail: (data.createdByEmail || '').toLowerCase(),
+          approval: data.approval || 'approved',
           history: data.history || [],
         });
       });

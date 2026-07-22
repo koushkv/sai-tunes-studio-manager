@@ -19,6 +19,7 @@ import MaintenanceScheduler from './components/MaintenanceScheduler';
 import ProjectsTracker from './components/ProjectsTracker';
 import AdminControls from './components/AdminControls';
 import ProjectsPortfolio from './components/ProjectsPortfolio';
+import NotificationsBell from './components/NotificationsBell';
 import { ToastProvider } from './components/ui/Toast';
 import { Button } from './components/ui/Primitives';
 import { ROLE_META } from './lib/stages';
@@ -57,6 +58,7 @@ export default function App() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const isAdmin = userRole === 'admin';
+  const canManage = isAdmin || userRole === 'junior_admin';
   const accountMenuRef = useRef<HTMLDivElement>(null);
   // Guards against re-issuing the master-admin seed write on every snapshot.
   const masterSeeded = useRef(false);
@@ -253,6 +255,13 @@ export default function App() {
 
               {isAuthed && user && (
                 <div className="flex items-center gap-2">
+                  {canManage && (
+                    <NotificationsBell
+                      currentUserEmail={user.email}
+                      onOpenProjects={() => openTab('projects')}
+                    />
+                  )}
+
                   {/* Desktop nav */}
                   <nav aria-label="Sections" className="hidden md:flex items-center gap-0.5">
                     {TABS.map(tab => {

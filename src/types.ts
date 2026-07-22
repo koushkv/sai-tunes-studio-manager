@@ -100,6 +100,13 @@ export interface MusicRelease {
 // === Music Project Types ===
 export type ProjectStage = 'composing' | 'arranging' | 'live_inputs' | 'mixing' | 'mastering' | 'completed';
 
+/**
+ * Projects created by students start as `pending` and are invisible to everyone
+ * except their author and the admins reviewing them. Only `approved` projects
+ * reach the shared Projects list and the Portfolio.
+ */
+export type ProjectApproval = 'pending' | 'approved' | 'rejected';
+
 export interface MusicProject {
   id: string;
   name: string;
@@ -111,11 +118,41 @@ export interface MusicProject {
   updatedAt: string;
   createdBy: string;
   createdAt: string;
+  /** Lowercase email of the author — drives "only the owner sees it" visibility. */
+  createdByEmail: string;
+  approval: ProjectApproval;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
   history?: {
     stage: ProjectStage;
     updatedBy: string;
     updatedAt: string;
     notes?: string;
   }[];
+}
+
+// === Notification Types ===
+export type NotificationType =
+  | 'project_submitted'
+  | 'project_updated'
+  | 'project_approved'
+  | 'project_rejected'
+  | 'asset_checked_out'
+  | 'asset_returned'
+  | 'maintenance_logged';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  actorName: string;
+  actorEmail: string;
+  entityType: 'project' | 'asset' | 'maintenance';
+  entityId: string;
+  createdAt: string;
+  /** Emails of admins who have already seen this — read state is per-admin. */
+  readBy: string[];
 }
 

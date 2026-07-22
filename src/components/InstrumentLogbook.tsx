@@ -25,6 +25,7 @@ import { Asset, AssetStatus, UserRole } from '../types';
 import { ASSET_STATUS } from '../lib/stages';
 import { formatDateTime } from '../lib/format';
 import { firestoreErrorMessage } from '../lib/errors';
+import { notify } from '../lib/notifications';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import {
@@ -318,6 +319,16 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
         status: 'active',
       });
 
+      await notify({
+        type: 'asset_checked_out',
+        title: `${asset.name} checked out to ${checkoutName.trim()}`,
+        body: checkoutPurpose.trim(),
+        actorName: lender,
+        actorEmail: currentUser.email,
+        entityType: 'asset',
+        entityId: checkoutAssetId,
+      });
+
       toast.success(`“${asset.name}” checked out to ${checkoutName.trim()}.`);
       setShowCheckoutForm(false);
       setCheckoutAssetId('');
@@ -352,6 +363,16 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
       if (assets.some(a => a.id === session.assetId)) {
         await updateDoc(doc(db, 'assets', session.assetId), { lentTo: '', lentAt: '' });
       }
+
+      await notify({
+        type: 'asset_returned',
+        title: `${session.assetName} returned by ${session.studentName}`,
+        body: returnNotes.trim(),
+        actorName: currentUser.displayName || currentUser.email,
+        actorEmail: currentUser.email,
+        entityType: 'asset',
+        entityId: session.assetId,
+      });
 
       toast.success(`“${session.assetName}” marked as returned.`);
       setReturningSession(null);

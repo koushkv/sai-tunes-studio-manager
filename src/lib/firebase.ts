@@ -27,6 +27,8 @@ import {
   limit,
   serverTimestamp,
   where,
+  arrayUnion,
+  writeBatch,
 } from 'firebase/firestore';
 
 // Values are read from a local file rather than env vars because AI Studio
@@ -124,5 +126,7 @@ export {
   limit,
   serverTimestamp,
   where,
+  arrayUnion,
+  writeBatch,
 };
 export type { User };

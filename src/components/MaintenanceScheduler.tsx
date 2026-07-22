@@ -4,6 +4,7 @@ import { Plus, Clock, CheckCircle2, User, Trash2, ClipboardList, AlertCircle } f
 import { MaintenanceTask, UserRole } from '../types';
 import { formatDate, formatDateTime } from '../lib/format';
 import { firestoreErrorMessage } from '../lib/errors';
+import { notify } from '../lib/notifications';
 import Modal from './ui/Modal';
 import { useToast } from './ui/Toast';
 import {
@@ -98,6 +99,16 @@ export default function MaintenanceScheduler({ currentUser, isAdmin, userRole }:
       ...(task.history || []),
     ];
     await updateDoc(doc(db, 'maintenance_tasks', task.id), { lastDone: now, history });
+
+    await notify({
+      type: 'maintenance_logged',
+      title: `${task.title} marked complete`,
+      body: remarks,
+      actorName: by,
+      actorEmail: currentUser?.email || '',
+      entityType: 'maintenance',
+      entityId: task.id,
+    });
   };
 
   /** One-tap log for the common "checked, all fine" case. */
