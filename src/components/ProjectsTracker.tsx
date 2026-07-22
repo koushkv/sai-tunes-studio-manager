@@ -182,6 +182,8 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
   const canEdit = (p: MusicProject) => canManage || p.createdByEmail === myEmail;
   const canDelete = (p: MusicProject) =>
     canManage || (p.createdByEmail === myEmail && p.approval !== 'approved');
+  /** Logging stage progress is limited to the students assigned to that project. */
+  const canLogStage = (p: MusicProject) => canManage || (p.students || []).includes(myEmail);
 
   const resetForm = () => {
     setShowForm(false);
@@ -191,6 +193,14 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
     setStage('composing');
     setSelectedStudents([]);
     setNotes('');
+  };
+
+  const openNewProject = () => {
+    resetForm();
+    // Assign authors to their own project by default. Stage updates are limited
+    // to assigned students, so this stops them locking themselves out.
+    if (!canManage) setSelectedStudents([myEmail]);
+    setShowForm(true);
   };
 
   const openEdit = (project: MusicProject) => {
@@ -482,7 +492,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
                   </Button>
                 </>
               ) : (
-                project.approval === 'approved' && (
+                project.approval === 'approved' && canLogStage(project) && (
                   <Button
                     variant="secondary"
                     onClick={() => {
@@ -624,7 +634,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
             ? 'Track music production stages and review student submissions'
             : 'Submit a project for approval, then track its production stages'
         }
-        actions={<Button icon={Plus} onClick={() => { resetForm(); setShowForm(true); }}>New project</Button>}
+        actions={<Button icon={Plus} onClick={openNewProject}>New project</Button>}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -693,7 +703,7 @@ export default function ProjectsTracker({ currentUser, isAdmin, userRole }: Proj
                   ? 'Approved projects appear here and in the Portfolio.'
                   : 'Create a project and an admin will review it. Approved projects show up here.'
               }
-              action={<Button icon={Plus} onClick={() => { resetForm(); setShowForm(true); }}>New project</Button>}
+              action={<Button icon={Plus} onClick={openNewProject}>New project</Button>}
             />
           ) : (
             <div className="space-y-4">

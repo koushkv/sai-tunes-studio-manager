@@ -103,9 +103,11 @@ service cloud.firestore {
                         && authorOf(resource.data) == callerEmail()
                         && authorOf(request.resource.data) == callerEmail()
                         && approvalOf(request.resource.data) == 'pending')
-                    // Anyone whitelisted may log stage progress on a live
-                    // project without altering its approval state.
+                    // Students assigned to a live project may log stage
+                    // progress on it, without altering its approval state.
+                    // Everyone else has read-only access via the Portfolio.
                     || (allowed()
+                        && callerEmail() in resource.data.get('students', [])
                         && approvalOf(resource.data) == 'approved'
                         && approvalOf(request.resource.data) == 'approved'
                         && onlyChanges(['stage', 'updatedBy', 'updatedAt', 'notes', 'history']));
