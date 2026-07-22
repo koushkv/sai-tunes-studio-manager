@@ -71,6 +71,18 @@ const EMPTY_ASSET = {
   remarks: '',
 };
 
+/**
+ * Column template shared by the header and every row.
+ *
+ * Each row is its own grid, so the tracks have to be content-independent or
+ * rows would size themselves differently and stop lining up: `minmax(0, Nfr)`
+ * rather than a bare `Nfr` (which is `minmax(auto, Nfr)` and refuses to shrink
+ * below its content), and a fixed width for the actions column instead of
+ * `auto`, which would otherwise be wider on rows that show a Check out button.
+ */
+const ROW_GRID =
+  'md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.5fr)_180px]';
+
 export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: InstrumentLogbookProps) {
   const canManage = isAdmin || userRole === 'junior_admin';
   const toast = useToast();
@@ -504,9 +516,9 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
 
           {/* Column headers, desktop only */}
           <div
-            className="hidden md:grid md:grid-cols-[minmax(0,2.2fr)_1fr_1.1fr_1fr_1.5fr_auto] gap-3 items-center
+            className={`hidden md:grid ${ROW_GRID} gap-x-3 items-center
                        px-4 py-2.5 bg-[#f5f5f7] border-b border-[#e8e8ed]
-                       text-[11px] font-semibold uppercase tracking-wide text-[#86868b]"
+                       text-[11px] font-semibold uppercase tracking-wide text-[#86868b]`}
             aria-hidden="true"
           >
             <span>Item</span>
@@ -514,7 +526,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
             <span>Status</span>
             <span>Location</span>
             <span>Availability</span>
-            <span className="w-[92px]" />
+            <span />
           </div>
 
           <ul className="divide-y divide-[#e8e8ed]">
@@ -527,10 +539,7 @@ export default function InstrumentLogbook({ currentUser, isAdmin, userRole }: In
 
               return (
                 <li key={asset.id} className="group hover:bg-[#f5f5f7]/60 transition-colors">
-                  <div
-                    className="grid gap-x-3 gap-y-2 px-4 py-2
-                               md:grid-cols-[minmax(0,2.2fr)_1fr_1.1fr_1fr_1.5fr_auto] md:items-center"
-                  >
+                  <div className={`grid gap-x-3 gap-y-2 px-4 py-2 ${ROW_GRID} md:items-center`}>
                     {/* Item */}
                     <div className="min-w-0">
                       <p className="text-[14px] font-semibold text-[#1d1d1f] leading-tight truncate" title={asset.name}>
